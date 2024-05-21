@@ -34,5 +34,5 @@ syntax!(
 syntax!(
   literal() -> i64:
     Token::Data(Literal::Integer(x), _) => x;
-    // support other datatypes
+    // TODO: support other datatypes
 );

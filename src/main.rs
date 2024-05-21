@@ -25,9 +25,5 @@ fn main() -> Result<()> {
         Err(error) => println!("{}", error.error(&file, path)),
     }
 
-    // let token_iter = file.tokenize();
-    // let tokens: Vec<Token> = token_iter.take(3).collect();
-    // println!("{:?}", ast);
-
     Ok(())
 }

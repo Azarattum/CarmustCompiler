@@ -27,7 +27,15 @@ fn function<'a>(
     // NOTE! Arguments are not supported in this implementation!
     symbol(stream, ")")?;
     symbol(stream, "{")?;
-    todo!()
+    // TODO: Parse body here
+    symbol(stream, "}")?;
+
+    Ok(Function {
+        // NOTE! This implementation only supports primitive function return types
+        datatype: DataType::Primitive(primitive),
+        name: identifier,
+        body: Vec::new(), // TODO: Make this an iterator
+    })
 }
 
 fn variable<'a>(
@@ -35,14 +43,14 @@ fn variable<'a>(
     primitive: Primitive<'a>,
     identifier: &'a str,
 ) -> Result<Variable<'a>, SyntaxError<'a>> {
-    symbol(stream, "=")?; // this is optional
+    symbol(stream, "=")?; // TODO: make this is optional
     let value = expression(stream)?;
     symbol(stream, ";")?;
 
     Ok(Variable {
-        datatype: DataType::Primitive(primitive), // support arrays
+        datatype: DataType::Primitive(primitive), // TODO: support arrays
         name: identifier,
-        value: Some(value), // support just declaration
+        value: Some(value), // TODO: support declaration without alignment
     })
 }
 
@@ -64,5 +72,5 @@ fn expression<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
 ) -> Result<Expression<'a>, SyntaxError<'a>> {
     Ok(Expression::Literal(literal(stream)?))
-    // todo other expressions!
+    // TODO: support other expressions
 }
