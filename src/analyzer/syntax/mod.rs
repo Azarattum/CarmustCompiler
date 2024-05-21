@@ -1,8 +1,7 @@
 mod r#macro;
 
-use super::Primitive;
 use super::SyntaxError;
-use crate::*;
+use crate::{ast::Primitive, *};
 use std::iter::Peekable;
 
 syntax!(

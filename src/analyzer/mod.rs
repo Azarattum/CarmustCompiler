@@ -1,27 +1,12 @@
-mod ast;
 mod syntax;
 
-use self::ast::*;
 use self::syntax::*;
+use crate::ast::*;
 use crate::error::*;
+use crate::DeclarationStream;
 use crate::TokenStream;
+use std::iter;
 use std::iter::Peekable;
-
-fn program<'a>(
-    stream: &mut Peekable<impl TokenStream<'a>>,
-) -> Result<Vec<Declaration<'a>>, SyntaxError<'a>> {
-    let mut declarations: Vec<Declaration<'a>> = Vec::new();
-
-    loop {
-        match declaration(stream) {
-            Ok(declaration) => declarations.push(declaration),
-            Err(error) if error.found.is_some() => return Err(error),
-            _ => break,
-        }
-    }
-
-    Ok(declarations)
-}
 
 fn declaration<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
@@ -85,14 +70,20 @@ fn expression<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
 ) -> Result<Expression<'a>, SyntaxError<'a>> {
     Ok(Expression::Literal(literal(stream)?))
+    // todo other expressions!
 }
 
 pub trait Analyzable<'a> {
-    fn analyze(self) -> Result<Vec<Declaration<'a>>, SyntaxError<'a>>;
+    fn analyze(self) -> impl DeclarationStream<'a>;
 }
 
-impl<'a, T: TokenStream<'a>> Analyzable<'a> for T {
-    fn analyze(self) -> Result<Vec<Declaration<'a>>, SyntaxError<'a>> {
-        program(&mut self.peekable())
+impl<'a, T: TokenStream<'a> + 'a> Analyzable<'a> for T {
+    fn analyze(self) -> impl DeclarationStream<'a> {
+        let mut stream = self.peekable();
+        iter::from_fn(move || match declaration(&mut stream) {
+            Ok(decl) => Some(Ok(decl)),
+            Err(error) if error.found.is_some() => Some(Err(error)),
+            _ => None,
+        })
     }
 }
