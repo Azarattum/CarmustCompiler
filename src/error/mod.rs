@@ -7,7 +7,7 @@ use std::{
 use crate::Token;
 
 pub struct SyntaxError<'a> {
-    pub expected: &'static str,
+    pub expected: String,
     pub found: Option<Token<'a>>,
 }
 

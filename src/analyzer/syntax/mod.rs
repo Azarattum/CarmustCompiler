@@ -13,13 +13,13 @@ syntax!(
 );
 
 syntax!(
-    keyword(_word: &str) -> ():
-      Token::Keyword(_word) => ();
+  keyword(word: &str) -> ():
+    Token::Keyword(x) if x == word => ();
 );
 
 syntax!(
-  symbol(_symbol: &str) -> ():
-    Token::Symbol(_symbol) => ();
+  symbol(symbol: &str) -> ():
+    Token::Symbol(x) if x == symbol => ();
 );
 
 syntax!(
@@ -28,12 +28,12 @@ syntax!(
 );
 
 syntax!(
-  literal() -> i64:
-    Token::Data(Literal::Integer(x), _) => x;
-    // support other datatypes
+  index() -> usize:
+    Token::Symbol("["), Token::Data(Literal::Integer(size), _) if size > 0, Token::Symbol("]") => size as usize;
 );
 
 syntax!(
-  index() -> usize:
-    Token::Symbol("["), Token::Data(Literal::Integer(size), _), Token::Symbol("]") => size as usize;
+  literal() -> i64:
+    Token::Data(Literal::Integer(x), _) => x;
+    // support other datatypes
 );

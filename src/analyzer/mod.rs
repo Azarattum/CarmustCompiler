@@ -4,62 +4,72 @@ mod syntax;
 use self::ast::*;
 use self::syntax::*;
 use crate::error::*;
-use crate::{Token, TokenStream};
-use std::{collections::HashMap, iter::Peekable};
+use crate::TokenStream;
+use std::iter::Peekable;
 
 fn program<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
-) -> Result<Program<'a>, SyntaxError<'a>> {
-    let mut program = Program {
-        types: HashMap::from([
-            ("short", DataType::Primitive(Primitive::Short)),
-            ("float", DataType::Primitive(Primitive::Float)),
-            ("char", DataType::Primitive(Primitive::Char)),
-            ("long", DataType::Primitive(Primitive::Long)),
-            ("int", DataType::Primitive(Primitive::Int)),
-        ]),
-        functions: Vec::new(),
-        globals: Vec::new(),
-    };
+) -> Result<Vec<Declaration<'a>>, SyntaxError<'a>> {
+    let mut declarations: Vec<Declaration<'a>> = Vec::new();
 
-    while let Some(token) = stream.peek().map(|&x| x) {
-        match token {
-            Token::Keyword("typedef") => {
-                let (key, datatype) = typedef(stream)?;
-                program.types.insert(key, datatype);
-            }
-            Token::Keyword(x) | Token::Identifier(x) if program.types.contains_key(x) => {
-                program.globals.push(variable(stream)?);
-            }
-            unknown => panic!("Unexpected token {:?}!", unknown),
+    loop {
+        match declaration(stream) {
+            Ok(declaration) => declarations.push(declaration),
+            Err(error) if error.found.is_some() => return Err(error),
+            _ => break,
         }
     }
 
-    return Ok(program);
+    Ok(declarations)
+}
+
+fn declaration<'a>(
+    stream: &mut Peekable<impl TokenStream<'a>>,
+) -> Result<Declaration<'a>, SyntaxError<'a>> {
+    match keyword(stream, "typedef") {
+        Ok(_) => Ok(Declaration::Type(typedef(stream)?)),
+        Err(_) => {
+            let primitive = primitive(stream)?;
+            let identifier = identifier(stream)?;
+
+            Ok(match symbol(stream, "(") {
+                Ok(_) => Declaration::Function(function(stream, primitive, identifier)?),
+                Err(_) => Declaration::Variable(variable(stream, primitive, identifier)?),
+            })
+        }
+    }
+}
+
+fn function<'a>(
+    stream: &mut Peekable<impl TokenStream<'a>>,
+    primitive: Primitive<'a>,
+    identifier: &'a str,
+) -> Result<Function<'a>, SyntaxError<'a>> {
+    // NOTE! Arguments are not supported in this implementation!
+    symbol(stream, ")")?;
+    symbol(stream, "{")?;
+    todo!()
 }
 
 fn variable<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
-) -> Result<VariableDeclaration<'a>, SyntaxError<'a>> {
-    let primitive = primitive(stream)?;
-    let identifier = identifier(stream)?;
+    primitive: Primitive<'a>,
+    identifier: &'a str,
+) -> Result<Variable<'a>, SyntaxError<'a>> {
     symbol(stream, "=")?; // this is optional
     let value = expression(stream)?;
     symbol(stream, ";")?;
 
-    Ok(VariableDeclaration {
+    Ok(Variable {
         datatype: DataType::Primitive(primitive), // support arrays
         name: identifier,
         value: Some(value), // support just declaration
     })
 }
 
-fn typedef<'a>(
-    stream: &mut Peekable<impl TokenStream<'a>>,
-) -> Result<(&'a str, DataType<'a>), SyntaxError<'a>> {
-    keyword(stream, "typedef")?;
+fn typedef<'a>(stream: &mut Peekable<impl TokenStream<'a>>) -> Result<Type<'a>, SyntaxError<'a>> {
     let datatype = primitive(stream)?;
-    let identifier = identifier(stream)?;
+    let name = identifier(stream)?;
     let size = index(stream).unwrap_or(0);
     symbol(stream, ";")?;
 
@@ -68,7 +78,7 @@ fn typedef<'a>(
         size => DataType::Array(datatype, size),
     };
 
-    return Ok((identifier, datatype));
+    return Ok(Type { name, datatype });
 }
 
 fn expression<'a>(
@@ -78,11 +88,11 @@ fn expression<'a>(
 }
 
 pub trait Analyzable<'a> {
-    fn analyze(self) -> Result<Program<'a>, SyntaxError<'a>>;
+    fn analyze(self) -> Result<Vec<Declaration<'a>>, SyntaxError<'a>>;
 }
 
 impl<'a, T: TokenStream<'a>> Analyzable<'a> for T {
-    fn analyze(self) -> Result<Program<'a>, SyntaxError<'a>> {
+    fn analyze(self) -> Result<Vec<Declaration<'a>>, SyntaxError<'a>> {
         program(&mut self.peekable())
     }
 }
