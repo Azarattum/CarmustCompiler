@@ -1,7 +1,9 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub const KEYWORDS: [&str; 7] = ["typedef", "int", "float", "short", "long", "for", "return"];
+pub const KEYWORDS: [&str; 8] = [
+    "typedef", "int", "float", "short", "long", "char", "for", "return",
+];
 
 pub const SYMBOLS: [&str; 13] = [
     "[", "]", "{", "}", "(", ")", ";", "=", "+", "-", "*", "/", ",",

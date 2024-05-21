@@ -27,15 +27,15 @@ pub enum Expression<'a> {
         op: char,
         operand: Box<Expression<'a>>,
     },
-    Literal(i32),
+    Literal(i64),
     Identifier(&'a str),
 }
 
 #[derive(Debug)]
 pub struct VariableDeclaration<'a> {
-    datatype: DataType<'a>,
-    name: &'a str,
-    value: Option<Expression<'a>>,
+    pub datatype: DataType<'a>,
+    pub name: &'a str,
+    pub value: Option<Expression<'a>>,
 }
 
 #[derive(Debug)]
@@ -78,7 +78,7 @@ pub enum GlobalStatement<'a> {
 
 #[derive(Debug)]
 pub struct Program<'a> {
-    pub typedefs: HashMap<&'a str, DataType<'a>>,
+    pub types: HashMap<&'a str, DataType<'a>>,
     pub globals: Vec<VariableDeclaration<'a>>,
     pub functions: Vec<Statement<'a>>,
 }
