@@ -47,7 +47,7 @@ impl<'a> SyntaxError<'a> {
     pub fn message(&self) -> String {
         match self.slice() {
             Some(x) => format!("Expected {}, but found {}!", self.expected, x),
-            _ => "Unexpected end of file!".to_owned(),
+            _ => format!("Unexpected end of file! (expected {})", self.expected),
         }
     }
 
