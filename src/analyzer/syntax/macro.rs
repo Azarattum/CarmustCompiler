@@ -20,8 +20,8 @@ macro_rules! nested {
 
 #[macro_export]
 macro_rules! syntax {
-    ($name:ident -> $type:ty: $($($cases:pat),+ => $result:expr;)+) => {
-        pub fn $name<'a>(stream: &mut Peekable<impl TokenStream<'a>>) -> Result<$type, SyntaxError<'a>> {
+    ($name:ident($($arg_name:ident: $arg_type:ty)*) -> $type:ty: $($($cases:pat),+ => $result:expr;)+) => {
+        pub fn $name<'a>(stream: &mut Peekable<impl TokenStream<'a>>, $($arg_name: $arg_type)*) -> Result<$type, SyntaxError<'a>> {
             nested!(stream, $name, $($($cases),+ => $result);+)
         }
     };
