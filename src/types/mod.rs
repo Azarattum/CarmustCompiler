@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Token<'a> {
     Data(Literal, &'a str),
     Identifier(&'a str),
@@ -7,7 +7,7 @@ pub enum Token<'a> {
     Comment,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Literal {
     Integer(i64),
     Floating(f64),

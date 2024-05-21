@@ -29,33 +29,20 @@ fn program<'a>(
     return Ok(program);
 }
 
-// fn index<'a>(stream: &mut Peekable<impl TokenStream<'a>>) -> Option<usize> {
-//     match stream.peek() {
-//         Some(Token::Symbol("[")) => match stream.skip(1).next() {
-//             Some(Token::Data(Literal::Integer(size), _)) if size > 0 => match stream.next() {
-//                 Some(Token::Symbol("]")) => Some(size as usize),
-//                 _ => panic!("Expected ]!"),
-//             },
-//             _ => panic!("Expected index!"),
-//         },
-//         _ => None,
-//     }
-// }
-
 fn typedef<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
 ) -> Result<(&'a str, DataType<'a>), SyntaxError<'a>> {
     let datatype = primitive(stream)?;
     let identifier = identifier(stream)?;
-    let size = index(stream)?;
+    let size = index(stream).unwrap_or(0);
     semicolon(stream)?;
 
-    // let datatype = match size {
-    //     Some(size) => DataType::Array(datatype, size),
-    //     None => DataType::Primitive(datatype),
-    // };
+    let datatype = match size {
+        0 => DataType::Primitive(datatype),
+        size => DataType::Array(datatype, size),
+    };
 
-    return Ok((identifier, DataType::Array(datatype, size)));
+    return Ok((identifier, datatype));
 }
 
 pub trait Analyzable<'a> {
