@@ -1,3 +1,4 @@
+mod expression;
 mod structure;
 mod syntax;
 

@@ -2,6 +2,7 @@ mod r#macro;
 
 use super::SyntaxError;
 use crate::{ast::Primitive, *};
+use ast::{BinaryOperator, UnaryOperator, Value};
 use std::iter::Peekable;
 
 syntax!(
@@ -17,8 +18,8 @@ syntax!(
 );
 
 syntax!(
-  symbol(symbol: &str) -> ():
-    Token::Symbol(x) if x == symbol => ();
+  symbol(symbol: &str) -> Token<'a>:
+    x if x == Token::Symbol(symbol) => x;
 );
 
 syntax!(
@@ -32,7 +33,21 @@ syntax!(
 );
 
 syntax!(
-  literal() -> i64:
-    Token::Data(Literal::Integer(x), _) => x;
-    // TODO: support other datatypes
+  literal() -> Value<'a>:
+    Token::Data(Literal::Floating(x), _) => Value::Float(x);
+    Token::Data(Literal::Integer(x), _) => Value::Integer(x);
+    Token::Data(Literal::Character(x), _) => Value::Integer(x as i64);
+);
+
+syntax!(
+  unary_operator() -> UnaryOperator:
+    Token::Symbol("-") => UnaryOperator::Negation;
+);
+
+syntax!(
+  binary_operator() -> BinaryOperator:
+    Token::Symbol("+") => BinaryOperator::Addition;
+    Token::Symbol("-") => BinaryOperator::Subtraction;
+    Token::Symbol("/") => BinaryOperator::Division;
+    Token::Symbol("*") => BinaryOperator::Multiplication;
 );

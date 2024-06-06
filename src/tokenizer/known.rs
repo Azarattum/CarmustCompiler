@@ -11,5 +11,5 @@ pub const SYMBOLS: [&str; 13] = [
 
 lazy_static! {
     pub static ref TOKEN_EXPRESSION: Regex =
-        Regex::new(r"'[^']'|\/\/.*|(?s)\/\*.*?\*\/|\d\.\d|\w+|\S").unwrap();
+        Regex::new(r"'[^']'|\/\/.*|(?s)\/\*.*?\*\/|\d+\.\d*|\w+|\S").unwrap();
 }

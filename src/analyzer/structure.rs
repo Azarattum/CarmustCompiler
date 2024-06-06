@@ -43,14 +43,15 @@ fn variable<'a>(
     primitive: Primitive<'a>,
     identifier: &'a str,
 ) -> Result<Variable<'a>, SyntaxError<'a>> {
-    symbol(stream, "=")?; // TODO: make this is optional
-    let value = expression(stream)?;
-    symbol(stream, ";")?;
+    let value = match symbol(stream, "=") {
+        Ok(_) => Some(expression(stream)?),
+        Err(_) => None,
+    };
 
     Ok(Variable {
         datatype: DataType::Primitive(primitive), // TODO: support arrays
         name: identifier,
-        value: Some(value), // TODO: support declaration without alignment
+        value, // TODO: support declaration without alignment
     })
 }
 
@@ -71,6 +72,5 @@ fn typedef<'a>(stream: &mut Peekable<impl TokenStream<'a>>) -> Result<Type<'a>, 
 fn expression<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
 ) -> Result<Expression<'a>, SyntaxError<'a>> {
-    Ok(Expression::Literal(literal(stream)?))
-    // TODO: support other expressions
+    Expression::from_stream(stream)
 }

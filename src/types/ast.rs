@@ -16,18 +16,56 @@ pub enum DataType<'a> {
     Array(Primitive<'a>, usize),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Operator {
+    Binary(BinaryOperator),
+    Unary(UnaryOperator),
+    Group,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BinaryOperator {
+    Addition,
+    Subtraction,
+    Division,
+    Multiplication,
+}
+
+impl BinaryOperator {
+    pub fn precedence(&self) -> i32 {
+        match *self {
+            BinaryOperator::Addition => 2,
+            BinaryOperator::Subtraction => 2,
+            BinaryOperator::Division => 3,
+            BinaryOperator::Multiplication => 3,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum UnaryOperator {
+    Negation,
+}
+
+#[derive(Debug)]
+pub enum Value<'a> {
+    Identifier(&'a str),
+    Array(&'a str, usize),
+    Integer(i64),
+    Float(f64),
+}
+
 #[derive(Debug)]
 pub enum Expression<'a> {
-    Identifier(&'a str),
-    Literal(i64),
+    Value(Value<'a>),
     Binary {
-        op: char,
+        op: BinaryOperator,
         lhs: Box<Expression<'a>>,
         rhs: Box<Expression<'a>>,
     },
     Unary {
-        op: char,
-        operand: Box<Expression<'a>>,
+        op: UnaryOperator,
+        lhs: Box<Expression<'a>>,
     },
 }
 

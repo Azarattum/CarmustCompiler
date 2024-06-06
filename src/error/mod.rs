@@ -6,6 +6,7 @@ use std::{
 
 use crate::Token;
 
+#[derive(Clone)]
 pub struct SyntaxError<'a> {
     pub expected: String,
     pub found: Option<Token<'a>>,
