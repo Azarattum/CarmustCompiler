@@ -73,12 +73,12 @@ fn expression<'a>(
         }
     }
 
-    if stack.len() > 0 {
+    while let Some(&Operator::Binary(_) | &Operator::Unary(_)) = stack.last() {
         apply(Mutation::Operator(stack.pop()))?;
     }
 
-    match output.len() {
-        1 => Ok(output.pop().unwrap()),
+    match (stack.len(), output.len()) {
+        (0, 1) => Ok(output.pop().unwrap()),
         _ => Err(expression_error),
     }
 }
@@ -122,13 +122,13 @@ fn term<'a>(
             completed = false;
 
             while let Some(&operator) = top && match operator {
-                        Operator::Binary(x) if x.precedence() >= op.precedence() => true,
-                        Operator::Unary(_) => true,
-                        _ => false,
-                    } {
-                        mutations.push(Mutation::Operator(stack.pop()));
-                        top = stack.last();
-                    }
+                Operator::Binary(x) if x.precedence() >= op.precedence() => true,
+                Operator::Unary(_) => true,
+                _ => false,
+            } {
+                mutations.push(Mutation::Operator(stack.pop()));
+                top = stack.last();
+            }
 
             stack.push(Operator::Binary(op));
             Ok(())
