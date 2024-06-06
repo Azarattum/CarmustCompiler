@@ -73,7 +73,7 @@ fn expression<'a>(
         }
     }
 
-    while stack.len() > 0 {
+    if stack.len() > 0 {
         apply(Mutation::Operator(stack.pop()))?;
     }
 
