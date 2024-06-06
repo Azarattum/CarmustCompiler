@@ -1,3 +1,4 @@
+#![feature(let_chains)]
 #![feature(type_alias_impl_trait)]
 #![feature(return_position_impl_trait_in_trait)]
 
