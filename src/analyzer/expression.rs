@@ -13,73 +13,67 @@ impl<'a> Expression<'a> {
     pub fn from_stream(
         stream: &mut Peekable<impl TokenStream<'a>>,
     ) -> Result<Self, SyntaxError<'a>> {
-        expression(stream)
-    }
-}
-
-fn expression<'a>(
-    stream: &mut Peekable<impl TokenStream<'a>>,
-) -> Result<Expression<'a>, SyntaxError<'a>> {
-    let expression_error = SyntaxError {
-        expected: "expression".to_owned(),
-        found: stream.peek().map(|&x| x),
-    };
-
-    let mut output = Vec::new();
-    let mut stack = Vec::new();
-    let mut complete = false;
-
-    let mut apply = |mutation: Mutation<'a>| -> Result<(), SyntaxError<'a>> {
-        let expression = match mutation {
-            Mutation::Expression(expression) => Some(expression),
-            Mutation::Operator(Some(operator)) => match operator {
-                Operator::Group => None,
-                Operator::Unary(op) => match output.pop() {
-                    Some(lhs) => Some(Expression::Unary {
-                        lhs: Box::new(lhs),
-                        op,
-                    }),
-                    None => return Err(expression_error.clone()),
-                },
-                Operator::Binary(op) => match (output.pop(), output.pop()) {
-                    (Some(rhs), Some(lhs)) => Some(Expression::Binary {
-                        lhs: Box::new(lhs),
-                        rhs: Box::new(rhs),
-                        op,
-                    }),
-                    _ => return Err(expression_error.clone()),
-                },
-            },
-            _ => None,
+        let expression_error = SyntaxError {
+            expected: "expression".to_owned(),
+            found: stream.peek().map(|&x| x),
         };
 
-        if let Some(expression) = expression {
-            output.push(expression);
-        }
+        let mut output = Vec::new();
+        let mut stack = Vec::new();
+        let mut complete = false;
 
-        Ok(())
-    };
+        let mut apply = |mutation: Mutation<'a>| -> Result<(), SyntaxError<'a>> {
+            let expression = match mutation {
+                Mutation::Expression(expression) => Some(expression),
+                Mutation::Operator(Some(operator)) => match operator {
+                    Operator::Group => None,
+                    Operator::Unary(op) => match output.pop() {
+                        Some(lhs) => Some(Expression::Unary {
+                            lhs: Box::new(lhs),
+                            op,
+                        }),
+                        None => return Err(expression_error.clone()),
+                    },
+                    Operator::Binary(op) => match (output.pop(), output.pop()) {
+                        (Some(rhs), Some(lhs)) => Some(Expression::Binary {
+                            lhs: Box::new(lhs),
+                            rhs: Box::new(rhs),
+                            op,
+                        }),
+                        _ => return Err(expression_error.clone()),
+                    },
+                },
+                _ => None,
+            };
 
-    loop {
-        match symbol(stream, ";") {
-            Err(_) => {
-                let (mutations, completed) = term(stream, &mut stack, complete)?;
-                complete = completed;
-                for mutation in mutations {
-                    apply(mutation)?;
-                }
+            if let Some(expression) = expression {
+                output.push(expression);
             }
-            Ok(_) => break,
+
+            Ok(())
+        };
+
+        loop {
+            match symbol(stream, ";") {
+                Err(_) => {
+                    let (mutations, completed) = term(stream, &mut stack, complete)?;
+                    complete = completed;
+                    for mutation in mutations {
+                        apply(mutation)?;
+                    }
+                }
+                Ok(_) => break,
+            }
         }
-    }
 
-    while let Some(&Operator::Binary(_) | &Operator::Unary(_)) = stack.last() {
-        apply(Mutation::Operator(stack.pop()))?;
-    }
+        while let Some(&Operator::Binary(_) | &Operator::Unary(_)) = stack.last() {
+            apply(Mutation::Operator(stack.pop()))?;
+        }
 
-    match (stack.len(), output.len()) {
-        (0, 1) => Ok(output.pop().unwrap()),
-        _ => Err(expression_error),
+        match (stack.len(), output.len()) {
+            (0, 1) => Ok(output.pop().unwrap()),
+            _ => Err(expression_error),
+        }
     }
 }
 
