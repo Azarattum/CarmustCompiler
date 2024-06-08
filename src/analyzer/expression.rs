@@ -5,13 +5,14 @@ use super::{
 use crate::{
     analyzer::syntax::{binary_operator, literal, symbol, unary_operator},
     ast::{Expression, Operator, Value},
-    TokenStream,
+    Token, TokenStream,
 };
 use std::iter::Peekable;
 
 impl<'a> Expression<'a> {
     pub fn from_stream(
         stream: &mut Peekable<impl TokenStream<'a>>,
+        terminator: &str,
     ) -> Result<Self, SyntaxError<'a>> {
         let expression_error = SyntaxError {
             expected: "expression".to_owned(),
@@ -54,15 +55,18 @@ impl<'a> Expression<'a> {
         };
 
         loop {
-            match symbol(stream, ";") {
-                Err(_) => {
-                    let (mutations, completed) = term(stream, &mut stack, complete)?;
+            match term(stream, &mut stack, complete) {
+                Ok((mutations, completed)) => {
                     complete = completed;
                     for mutation in mutations {
                         apply(mutation)?;
                     }
                 }
-                Ok(_) => break,
+                Err(error) if error.found == Some(Token::Symbol(terminator)) => {
+                    stream.next();
+                    break;
+                }
+                Err(error) => return Err(error),
             }
         }
 
@@ -134,6 +138,13 @@ fn term<'a>(
         })
         .or_else(|_: SyntaxError<'a>| {
             let token = stream.peek().map(|&x| x);
+            if token == Some(Token::Symbol(")")) && !stack.contains(&Operator::Group) {
+                return Err(SyntaxError {
+                    expected: "expression term".to_owned(),
+                    found: token,
+                });
+            }
+
             symbol(stream, ")")?;
             let mut top = stack.last();
             completed = true;
@@ -143,16 +154,8 @@ fn term<'a>(
                 top = stack.last();
             }
 
-            match top {
-                Some(&Operator::Group) => {
-                    stack.pop();
-                    Ok(())
-                }
-                _ => Err(SyntaxError {
-                    expected: "expression term".to_owned(),
-                    found: token,
-                }),
-            }
+            stack.pop();
+            Ok(())
         })
         .or_else(|error: SyntaxError<'a>| {
             Err(SyntaxError {

@@ -2,27 +2,31 @@ mod r#macro;
 
 use super::SyntaxError;
 use crate::{ast::Primitive, *};
-use analyzer::structure::{declaration, expression, typedef};
+use analyzer::structure::{declaration, expression, repetition, typedef};
 use ast::{BinaryOperator, Statement, UnaryOperator, Value};
 use std::iter::Peekable;
 
 syntax!(
   statement() with stream -> Statement<'a>:
     Token::Keyword("typedef") => Statement::Type(typedef(stream)?);
-    Token::Keyword("return") => Statement::Return(expression(stream)?);
+    Token::Keyword("return") => Statement::Return(expression(stream, ";")?);
     Token::Keyword("int") => declaration(stream, Primitive::Int)?;
     Token::Keyword("float") => declaration(stream, Primitive::Float)?;
     Token::Keyword("short") => declaration(stream, Primitive::Short)?;
     Token::Keyword("long") => declaration(stream, Primitive::Long)?;
     Token::Keyword("char") => declaration(stream, Primitive::Char)?;
     Token::Identifier(identifier) => declaration(stream, Primitive::Custom(identifier))?;
-    Token::Keyword("for") => todo!();
+    Token::Keyword("for") => Statement::Loop(repetition(stream)?);
 );
 
+// TODO: syntax! composition
 syntax!(
   primitive() -> Primitive<'a>:
     Token::Keyword("int") => Primitive::Int;
     Token::Keyword("float") => Primitive::Float;
+    Token::Keyword("short") => Primitive::Short;
+    Token::Keyword("long") => Primitive::Long;
+    Token::Keyword("char") => Primitive::Char;
     Token::Identifier(identifier) => Primitive::Custom(identifier);
 );
 

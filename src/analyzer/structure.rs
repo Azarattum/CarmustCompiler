@@ -8,7 +8,7 @@ pub fn declaration<'a>(
 ) -> Result<Statement<'a>, SyntaxError<'a>> {
     match (&primitive, symbol(stream, "=")) {
         (Primitive::Custom(identifier), Ok(_)) => {
-            return Ok(Statement::Assignment(assignment(stream, identifier)?))
+            return Ok(Statement::Assignment(assignment(stream, identifier, ";")?))
         }
         _ => (),
     }
@@ -46,7 +46,7 @@ pub fn variable<'a>(
     identifier: &'a str,
 ) -> Result<Variable<'a>, SyntaxError<'a>> {
     let value = match symbol(stream, "=") {
-        Ok(_) => Some(expression(stream)?),
+        Ok(_) => Some(expression(stream, ";")?),
         Err(_) => None,
     };
 
@@ -75,16 +75,42 @@ pub fn typedef<'a>(
 
 pub fn expression<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
+    terminator: &str,
 ) -> Result<Expression<'a>, SyntaxError<'a>> {
-    Expression::from_stream(stream)
+    Expression::from_stream(stream, terminator)
 }
 
 pub fn assignment<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
     identifier: &'a str,
+    terminator: &str,
 ) -> Result<Assignment<'a>, SyntaxError<'a>> {
     Ok(Assignment {
         name: identifier,
-        value: expression(stream)?,
+        value: expression(stream, terminator)?,
+    })
+}
+
+// TODO: allow for arbitrary expressions?
+pub fn repetition<'a>(
+    stream: &mut Peekable<impl TokenStream<'a>>,
+) -> Result<Loop<'a>, SyntaxError<'a>> {
+    symbol(stream, "(")?;
+    let primitive = primitive(stream)?;
+    let name = identifier(stream)?;
+    let initialization = variable(stream, primitive, name)?;
+    let condition = expression(stream, ";")?;
+    let name = identifier(stream)?;
+    symbol(stream, "=")?;
+    let increment = assignment(stream, name, ")")?;
+    symbol(stream, "{")?;
+    // TODO: Parse body here
+    symbol(stream, "}")?;
+
+    Ok(Loop {
+        initialization,
+        condition,
+        increment,
+        body: Vec::new(), // TODO: Make this an iterator
     })
 }

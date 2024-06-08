@@ -100,10 +100,10 @@ pub enum Expression<'a> {
 
 #[derive(Debug)]
 pub struct Loop<'a> {
-    initialization: Variable<'a>,
-    condition: Expression<'a>,
-    increment: Assignment<'a>,
-    body: Vec<Statement<'a>>,
+    pub initialization: Variable<'a>,
+    pub condition: Expression<'a>,
+    pub increment: Assignment<'a>,
+    pub body: Vec<Statement<'a>>,
 }
 
 #[derive(Debug)]
