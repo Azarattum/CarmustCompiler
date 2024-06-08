@@ -29,15 +29,43 @@ pub enum BinaryOperator {
     Subtraction,
     Division,
     Multiplication,
+    Remainder,
+    Greater,
+    Less,
+    GreaterEqual,
+    LessEqual,
+    Equal,
+    NotEqual,
+    Or,
+    And,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    LeftShift,
+    RightShift,
 }
 
 impl BinaryOperator {
     pub fn precedence(&self) -> i32 {
         match *self {
-            BinaryOperator::Addition => 2,
-            BinaryOperator::Subtraction => 2,
             BinaryOperator::Division => 3,
             BinaryOperator::Multiplication => 3,
+            BinaryOperator::Remainder => 3,
+            BinaryOperator::Addition => 4,
+            BinaryOperator::Subtraction => 4,
+            BinaryOperator::LeftShift => 5,
+            BinaryOperator::RightShift => 5,
+            BinaryOperator::Greater => 6,
+            BinaryOperator::Less => 6,
+            BinaryOperator::GreaterEqual => 6,
+            BinaryOperator::LessEqual => 6,
+            BinaryOperator::Equal => 7,
+            BinaryOperator::NotEqual => 7,
+            BinaryOperator::BitwiseAnd => 8,
+            BinaryOperator::BitwiseXor => 9,
+            BinaryOperator::BitwiseOr => 10,
+            BinaryOperator::And => 11,
+            BinaryOperator::Or => 12,
         }
     }
 }
@@ -45,6 +73,7 @@ impl BinaryOperator {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UnaryOperator {
     Negation,
+    Inversion,
 }
 
 #[derive(Debug)]

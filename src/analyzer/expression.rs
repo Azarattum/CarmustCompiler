@@ -106,7 +106,6 @@ fn term<'a>(
         })
         .or_else(|_: SyntaxError<'a>| {
             if !complete && let Ok(op) = unary_operator(stream) {
-                completed = true;
                 stack.push(Operator::Unary(op));
                 return Ok(())
             }
@@ -116,7 +115,7 @@ fn term<'a>(
             completed = false;
 
             while let Some(&operator) = top && match operator {
-                Operator::Binary(x) if x.precedence() >= op.precedence() => true,
+                Operator::Binary(x) if x.precedence() <= op.precedence() => true,
                 Operator::Unary(_) => true,
                 _ => false,
             } {

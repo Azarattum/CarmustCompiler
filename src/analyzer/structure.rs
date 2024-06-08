@@ -25,6 +25,7 @@ fn function<'a>(
     identifier: &'a str,
 ) -> Result<Function<'a>, SyntaxError<'a>> {
     // NOTE! Arguments are not supported in this implementation!
+    // TODO: add hint support to SyntaxError?
     symbol(stream, ")")?;
     symbol(stream, "{")?;
     // TODO: Parse body here

@@ -42,6 +42,7 @@ syntax!(
 syntax!(
   unary_operator() -> UnaryOperator:
     Token::Symbol("-") => UnaryOperator::Negation;
+    Token::Symbol("!") => UnaryOperator::Inversion;
 );
 
 syntax!(
@@ -50,4 +51,18 @@ syntax!(
     Token::Symbol("-") => BinaryOperator::Subtraction;
     Token::Symbol("/") => BinaryOperator::Division;
     Token::Symbol("*") => BinaryOperator::Multiplication;
+    Token::Symbol("%") => BinaryOperator::Remainder;
+    Token::Symbol(">") => BinaryOperator::Greater;
+    Token::Symbol("<") => BinaryOperator::Less;
+    Token::Symbol(">=") => BinaryOperator::GreaterEqual;
+    Token::Symbol("<=") => BinaryOperator::LessEqual;
+    Token::Symbol("==") => BinaryOperator::Equal;
+    Token::Symbol("!=") => BinaryOperator::NotEqual;
+    Token::Symbol("&&") => BinaryOperator::And;
+    Token::Symbol("||") => BinaryOperator::Or;
+    Token::Symbol("&") => BinaryOperator::BitwiseAnd;
+    Token::Symbol("|") => BinaryOperator::BitwiseOr;
+    Token::Symbol("^") => BinaryOperator::BitwiseXor;
+    Token::Symbol("<<") => BinaryOperator::LeftShift;
+    Token::Symbol(">>") => BinaryOperator::RightShift;
 );
