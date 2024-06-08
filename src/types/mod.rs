@@ -1,6 +1,6 @@
 pub mod ast;
 
-use self::ast::Declaration;
+use self::ast::Statement;
 use crate::error::SyntaxError;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -23,10 +23,10 @@ pub trait TokenStream<'a>: Iterator<Item = Token<'a>> {}
 impl<'a, T: Iterator<Item = Token<'a>>> TokenStream<'a> for T {}
 
 pub trait DeclarationStream<'a>:
-    Iterator<Item = Result<Declaration<'a>, SyntaxError<'a>>> + 'a
+    Iterator<Item = Result<Statement<'a>, SyntaxError<'a>>> + 'a
 {
 }
-impl<'a, T: Iterator<Item = Result<Declaration<'a>, SyntaxError<'a>>> + 'a> DeclarationStream<'a>
+impl<'a, T: Iterator<Item = Result<Statement<'a>, SyntaxError<'a>>> + 'a> DeclarationStream<'a>
     for T
 {
 }

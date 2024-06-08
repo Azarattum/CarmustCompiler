@@ -4,22 +4,23 @@ use std::iter::Peekable;
 
 pub fn declaration<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
-) -> Result<Declaration<'a>, SyntaxError<'a>> {
-    match keyword(stream, "typedef") {
-        Ok(_) => Ok(Declaration::Type(typedef(stream)?)),
-        Err(_) => {
-            let primitive = primitive(stream)?;
-            let identifier = identifier(stream)?;
-
-            Ok(match symbol(stream, "(") {
-                Ok(_) => Declaration::Function(function(stream, primitive, identifier)?),
-                Err(_) => Declaration::Variable(variable(stream, primitive, identifier)?),
-            })
+    primitive: Primitive<'a>,
+) -> Result<Statement<'a>, SyntaxError<'a>> {
+    match (&primitive, symbol(stream, "=")) {
+        (Primitive::Custom(identifier), Ok(_)) => {
+            return Ok(Statement::Assignment(assignment(stream, identifier)?))
         }
+        _ => (),
     }
+
+    let identifier = identifier(stream)?;
+    Ok(match symbol(stream, "(") {
+        Ok(_) => Statement::Function(function(stream, primitive, identifier)?),
+        Err(_) => Statement::Variable(variable(stream, primitive, identifier)?),
+    })
 }
 
-fn function<'a>(
+pub fn function<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
     primitive: Primitive<'a>,
     identifier: &'a str,
@@ -39,7 +40,7 @@ fn function<'a>(
     })
 }
 
-fn variable<'a>(
+pub fn variable<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
     primitive: Primitive<'a>,
     identifier: &'a str,
@@ -56,7 +57,9 @@ fn variable<'a>(
     })
 }
 
-fn typedef<'a>(stream: &mut Peekable<impl TokenStream<'a>>) -> Result<Type<'a>, SyntaxError<'a>> {
+pub fn typedef<'a>(
+    stream: &mut Peekable<impl TokenStream<'a>>,
+) -> Result<Type<'a>, SyntaxError<'a>> {
     let datatype = primitive(stream)?;
     let name = identifier(stream)?;
     let size = index(stream).unwrap_or(0);
@@ -70,8 +73,18 @@ fn typedef<'a>(stream: &mut Peekable<impl TokenStream<'a>>) -> Result<Type<'a>, 
     return Ok(Type { name, datatype });
 }
 
-fn expression<'a>(
+pub fn expression<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
 ) -> Result<Expression<'a>, SyntaxError<'a>> {
     Expression::from_stream(stream)
+}
+
+pub fn assignment<'a>(
+    stream: &mut Peekable<impl TokenStream<'a>>,
+    identifier: &'a str,
+) -> Result<Assignment<'a>, SyntaxError<'a>> {
+    Ok(Assignment {
+        name: identifier,
+        value: expression(stream)?,
+    })
 }

@@ -2,19 +2,28 @@ mod r#macro;
 
 use super::SyntaxError;
 use crate::{ast::Primitive, *};
-use ast::{BinaryOperator, UnaryOperator, Value};
+use analyzer::structure::{declaration, expression, typedef};
+use ast::{BinaryOperator, Statement, UnaryOperator, Value};
 use std::iter::Peekable;
+
+syntax!(
+  statement() with stream -> Statement<'a>:
+    Token::Keyword("typedef") => Statement::Type(typedef(stream)?);
+    Token::Keyword("return") => Statement::Return(expression(stream)?);
+    Token::Keyword("int") => declaration(stream, Primitive::Int)?;
+    Token::Keyword("float") => declaration(stream, Primitive::Float)?;
+    Token::Keyword("short") => declaration(stream, Primitive::Short)?;
+    Token::Keyword("long") => declaration(stream, Primitive::Long)?;
+    Token::Keyword("char") => declaration(stream, Primitive::Char)?;
+    Token::Identifier(identifier) => declaration(stream, Primitive::Custom(identifier))?;
+    Token::Keyword("for") => todo!();
+);
 
 syntax!(
   primitive() -> Primitive<'a>:
     Token::Keyword("int") => Primitive::Int;
     Token::Keyword("float") => Primitive::Float;
     Token::Identifier(identifier) => Primitive::Custom(identifier);
-);
-
-syntax!(
-  keyword(word: &str) -> ():
-    Token::Keyword(x) if x == word => ();
 );
 
 syntax!(
