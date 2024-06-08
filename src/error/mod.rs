@@ -25,7 +25,7 @@ impl<'a> SyntaxError<'a> {
             None => text.len(),
         };
 
-        let line = text[..offset].lines().count();
+        let line = text[..(offset + 1)].lines().count();
         let start = text[..offset]
             .char_indices()
             .rev()
