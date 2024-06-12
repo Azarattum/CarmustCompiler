@@ -1,32 +1,24 @@
+pub mod semantic;
+pub mod syntax;
+
 use colored::Colorize;
 use std::{
-    cmp::max,
-    fmt::{self, Debug},
+    cmp::{max, min},
     process::exit,
 };
 
-use crate::Token;
+pub trait ErrorLike {
+    fn slice(&self) -> Option<&str>;
+    fn message(&self) -> String;
+    fn kind() -> &'static str;
 
-#[derive(Clone)]
-pub struct SyntaxError<'a> {
-    pub expected: String,
-    pub found: Option<Token<'a>>,
-}
-
-impl<'a> Debug for SyntaxError<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message())
-    }
-}
-
-impl<'a> SyntaxError<'a> {
-    pub fn lookup(text: &str, slice: Option<&str>) -> (usize, usize) {
+    fn lookup(text: &str, slice: Option<&str>) -> (usize, usize) {
         let offset = match slice {
             Some(slice) => slice.as_ptr() as usize - text.as_ptr() as usize,
             None => text.len(),
         };
 
-        let line = text[..(offset + 1)].lines().count();
+        let line = text[..min(offset + 1, text.len())].lines().count();
         let start = text[..offset]
             .char_indices()
             .rev()
@@ -37,25 +29,9 @@ impl<'a> SyntaxError<'a> {
         return (line - 1, (offset as i64 - start - 1) as usize);
     }
 
-    pub fn slice(&self) -> Option<&'a str> {
-        match self.found {
-            Some(
-                Token::Identifier(x) | Token::Keyword(x) | Token::Symbol(x) | Token::Data(_, x),
-            ) => Some(x),
-            _ => None,
-        }
-    }
-
-    pub fn message(&self) -> String {
-        match self.slice() {
-            Some(x) => format!("Expected {}, but found {}!", self.expected, x),
-            _ => format!("Unexpected end of file! (expected {})", self.expected),
-        }
-    }
-
-    pub fn report(&self, code: &str, filename: &str) -> String {
+    fn report(&self, code: &str, filename: &str) -> String {
         let token = self.slice();
-        let (line, char) = SyntaxError::lookup(code, token);
+        let (line, char) = Self::lookup(code, token);
         let pad = (line + 2).to_string().len() + 2;
         let length = token.unwrap_or("").len();
         let message = self.message();
@@ -85,8 +61,9 @@ impl<'a> SyntaxError<'a> {
 
         let spacer_pad = pad + 3;
         format!(
-            "{} {}\n   {: >pad$} {}:{}:{}\n{: >spacer_pad$}\n{}",
-            "SyntaxError:".red().bold(),
+            "{}{} {}\n   {: >pad$} {}:{}:{}\n{: >spacer_pad$}\n{}",
+            Self::kind().red().bold(),
+            ":".red().bold(),
             message.red(),
             "-->".blue().bold(),
             filename.cyan(),
@@ -97,7 +74,7 @@ impl<'a> SyntaxError<'a> {
         )
     }
 
-    pub fn crash(&self, code: &str, filename: &str) -> ! {
+    fn crash(&self, code: &str, filename: &str) -> ! {
         println!("{}", self.report(code, filename));
         exit(1);
     }

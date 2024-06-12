@@ -1,6 +1,6 @@
 use super::{syntax::*, SyntaxError};
 use crate::{ast::*, Token, TokenStream};
-use std::iter::{self, Peekable};
+use std::iter::Peekable;
 
 pub fn declaration<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
@@ -49,7 +49,10 @@ pub fn variable<'a>(
             name,
             value: expression(stream, ";")?,
         }),
-        Err(_) => None,
+        Err(_) => {
+            symbol(stream, ";")?;
+            None
+        }
     };
 
     Ok(Variable {

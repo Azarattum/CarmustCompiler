@@ -11,6 +11,7 @@ mod types;
 use analyzer::*;
 use anyhow::Result;
 use colored::Colorize;
+use error::*;
 use program::Program;
 use std::fs::read_to_string;
 use tokenizer::*;
@@ -29,7 +30,8 @@ fn main() -> Result<()> {
     println!("{}: {:?}\n", "AST".bold().magenta(), ast);
 
     let mut program = Program::new();
-    ast.translate(&mut program);
+    ast.translate(&mut program)
+        .unwrap_or_else(|error| error.crash(&file, path));
     println!("{}:\n{:?}\n", "IR".bold().green(), program);
 
     Ok(())

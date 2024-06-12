@@ -3,7 +3,7 @@ mod structure;
 mod syntax;
 
 use crate::ast::Statement;
-use crate::error::*;
+use crate::error::syntax::SyntaxError;
 use crate::TokenStream;
 use structure::block;
 

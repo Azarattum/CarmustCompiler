@@ -1,7 +1,7 @@
 pub mod ast;
 
 use self::ast::Statement;
-use crate::error::SyntaxError;
+use crate::error::syntax::SyntaxError;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Token<'a> {
