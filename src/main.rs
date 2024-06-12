@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     let tokens: Vec<Token> = file.tokenize().collect();
     println!("{}: {:?}\n", "Tokens".bold().cyan(), tokens);
 
-    let ast: Result<Vec<_>, _> = tokens.into_iter().analyze().collect();
+    let ast = tokens.into_iter().analyze();
     match ast {
         Ok(ast) => println!("{}: {:?}", "AST".bold().magenta(), ast),
         Err(error) => println!("{}", error.error(&file, path)),

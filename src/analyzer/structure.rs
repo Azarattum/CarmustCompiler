@@ -1,6 +1,6 @@
 use super::{syntax::*, SyntaxError};
-use crate::{ast::*, TokenStream};
-use std::iter::Peekable;
+use crate::{ast::*, Token, TokenStream};
+use std::iter::{self, Peekable};
 
 pub fn declaration<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
@@ -29,14 +29,13 @@ pub fn function<'a>(
     // TODO: add hint support to SyntaxError?
     symbol(stream, ")")?;
     symbol(stream, "{")?;
-    // TODO: Parse body here
-    symbol(stream, "}")?;
+    let body = block(stream, "}")?;
 
     Ok(Function {
         // NOTE! This implementation only supports primitive function return types
         datatype: DataType::Primitive(primitive),
         name: identifier,
-        body: Vec::new(), // TODO: Make this an iterator
+        body: body,
     })
 }
 
@@ -104,13 +103,35 @@ pub fn repetition<'a>(
     symbol(stream, "=")?;
     let increment = assignment(stream, name, ")")?;
     symbol(stream, "{")?;
-    // TODO: Parse body here
-    symbol(stream, "}")?;
+    let body = block(stream, "}")?;
 
     Ok(Loop {
         initialization,
         condition,
         increment,
-        body: Vec::new(), // TODO: Make this an iterator
+        body,
     })
+}
+
+pub fn block<'a>(
+    stream: &mut Peekable<impl TokenStream<'a>>,
+    terminator: &str,
+) -> Result<Vec<Statement<'a>>, SyntaxError<'a>> {
+    let expected = match terminator {
+        "" => None,
+        x => Some(Token::Symbol(x)),
+    };
+
+    let block = iter::from_fn(|| match statement(stream) {
+        Ok(decl) => Some(Ok(decl)),
+        Err(error) if error.found == expected => None,
+        Err(error) => Some(Err(error)),
+    })
+    .collect();
+
+    if terminator != "" {
+        symbol(stream, terminator)?;
+    }
+
+    return block;
 }
