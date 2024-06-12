@@ -42,17 +42,20 @@ pub fn function<'a>(
 pub fn variable<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
     primitive: Primitive<'a>,
-    identifier: &'a str,
+    name: &'a str,
 ) -> Result<Variable<'a>, SyntaxError<'a>> {
-    let value = match symbol(stream, "=") {
-        Ok(_) => Some(expression(stream, ";")?),
+    let assignment = match symbol(stream, "=") {
+        Ok(_) => Some(Assignment {
+            name,
+            value: expression(stream, ";")?,
+        }),
         Err(_) => None,
     };
 
     Ok(Variable {
         datatype: DataType::Primitive(primitive), // TODO: support arrays
-        name: identifier,
-        value, // TODO: support declaration without alignment
+        assignment,
+        name,
     })
 }
 

@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Primitive<'a> {
     Int,
     Float,
@@ -10,7 +8,7 @@ pub enum Primitive<'a> {
     Custom(&'a str),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum DataType<'a> {
     Primitive(Primitive<'a>),
     Array(Primitive<'a>, usize),
@@ -110,7 +108,7 @@ pub struct Loop<'a> {
 pub struct Variable<'a> {
     pub datatype: DataType<'a>,
     pub name: &'a str,
-    pub value: Option<Expression<'a>>,
+    pub assignment: Option<Assignment<'a>>,
 }
 
 #[derive(Debug)]
@@ -140,10 +138,4 @@ pub enum Statement<'a> {
     Type(Type<'a>),
     Loop(Loop<'a>),
     Return(Expression<'a>),
-}
-
-#[derive(Debug)]
-pub struct Program<'a> {
-    pub types: HashMap<&'a str, DataType<'a>>,
-    pub declarations: Vec<Statement<'a>>,
 }
