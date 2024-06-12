@@ -1,75 +1,133 @@
 mod intermediate;
 pub mod program;
 
-use crate::ast::{
-    Assignment, BinaryOperator, Expression, Loop, Statement, UnaryOperator, Value, Variable,
+use crate::{
+    ast::{
+        Assignment, BinaryOperator, Expression, Loop, Statement, UnaryOperator, Value, Variable,
+    },
+    semantic::SemanticError,
 };
 use intermediate::{Operand, Operation};
 use program::Program;
 
 pub trait Translatable<'a> {
-    fn translate(self, program: &mut Program<'a>) -> ();
+    fn translate(self, program: &mut Program<'a>) -> Result<(), SemanticError<'a>>;
 }
 
 impl<'a> Translatable<'a> for Statement<'a> {
-    fn translate(self, program: &mut Program<'a>) {
+    fn translate(self, program: &mut Program<'a>) -> Result<(), SemanticError<'a>> {
         match self {
             Self::Type(typedef) => program.define_type(&typedef.name, typedef.datatype),
             Self::Assignment(assignment) => assignment.translate(program),
             Self::Variable(variable) => variable.translate(program),
             Self::Loop(repetition) => repetition.translate(program),
             Self::Return(value) => {
-                value.translate(program);
+                if program.toplevel() {
+                    return Err(SemanticError {
+                        message: "Return is not allowed on the top-level!".to_owned(),
+                        token: None,
+                    });
+                }
+
+                value.translate(program)?;
                 program.instruct(Operation::Ret, program.last(), Operand::None);
+                Ok(())
             }
             Self::Function(function) => {
-                program.toplevel = false;
-                function.body.translate(program);
+                if function.name != "main" {
+                    return Err(SemanticError {
+                        message: "Only 'main' function is supported by this implementation!"
+                            .to_owned(),
+                        token: Some(&function.name),
+                    });
+                }
+
+                program.push_scope();
+                function.body.translate(program)?;
+                program.pop_scope();
+                Ok(())
             }
         }
     }
 }
 
 impl<'a> Translatable<'a> for Assignment<'a> {
-    fn translate(self, program: &mut Program<'a>) {
-        self.value.translate(program);
+    fn translate(self, program: &mut Program<'a>) -> Result<(), SemanticError<'a>> {
+        if program.toplevel() {
+            return Err(SemanticError {
+                message: "Assignments are not allowed on the top-level!".to_owned(),
+                token: Some(self.name),
+            });
+        }
+        if !program.is_defined(&self.name) {
+            return Err(SemanticError {
+                message: format!("'{}' is not defined!", self.name),
+                token: Some(self.name),
+            });
+        }
+
+        self.value.translate(program)?;
         program.instruct(
             Operation::Str,
             Operand::Identifier(self.name),
             program.last(),
-        )
+        );
+        Ok(())
     }
 }
 
 impl<'a> Translatable<'a> for Variable<'a> {
-    fn translate(self, program: &mut Program<'a>) -> () {
-        program.define_variable(&self.name, self.datatype);
+    fn translate(self, program: &mut Program<'a>) -> Result<(), SemanticError<'a>> {
         match self.assignment {
-            Some(assignment) => assignment.translate(program),
-            None => (),
+            Some(Assignment {
+                name,
+                // TODO: support definitions for other types
+                value: Expression::Value(Value::Integer(value)),
+            }) => program.define_variable(name, self.datatype, Some(value)),
+            Some(_) | None => {
+                program.define_variable(&self.name, self.datatype, None)?;
+                self.assignment.and_then(|x| Some(x.translate(program)));
+                Ok(())
+            }
         }
     }
 }
 
 impl<'a> Translatable<'a> for Loop<'a> {
-    fn translate(self, program: &mut Program<'a>) -> () {
+    fn translate(self, program: &mut Program<'a>) -> Result<(), SemanticError<'a>> {
+        if program.toplevel() {
+            return Err(SemanticError {
+                message: "Loops are not allowed on the top-level!".to_owned(),
+                token: Some(self.initialization.name),
+            });
+        }
+        program.push_scope();
+        program.pop_scope();
         todo!()
     }
 }
 
 impl<'a> Translatable<'a> for Expression<'a> {
-    fn translate(self, program: &mut Program<'a>) {
+    fn translate(self, program: &mut Program<'a>) -> Result<(), SemanticError<'a>> {
         match self {
             Self::Value(value) => {
                 let operand = match value {
                     Value::Integer(literal) => Operand::Literal(literal),
-                    Value::Identifier(identifier) => Operand::Identifier(identifier),
+                    Value::Identifier(identifier) => {
+                        if !program.is_defined(identifier) {
+                            return Err(SemanticError {
+                                message: format!("Usage of undefined variable '{}'", identifier),
+                                token: Some(identifier),
+                            });
+                        }
+                        Operand::Identifier(identifier)
+                    }
                     _ => todo!(),
                 };
                 program.instruct(Operation::Mov, Operand::Temp, operand);
             }
             Self::Unary { op, lhs } => {
-                lhs.translate(program);
+                lhs.translate(program)?;
                 match op {
                     UnaryOperator::Negation => {
                         program.instruct(Operation::Neg, program.last(), Operand::None);
@@ -82,9 +140,9 @@ impl<'a> Translatable<'a> for Expression<'a> {
                 }
             }
             Self::Binary { op, lhs, rhs } => {
-                lhs.translate(program);
+                lhs.translate(program)?;
                 let operand1 = program.last();
-                rhs.translate(program);
+                rhs.translate(program)?;
                 let operand2 = program.last();
                 match op {
                     BinaryOperator::Addition => {
@@ -163,12 +221,16 @@ impl<'a> Translatable<'a> for Expression<'a> {
                     }
                 }
             }
-        }
+        };
+        Ok(())
     }
 }
 
 impl<'a> Translatable<'a> for Vec<Statement<'a>> {
-    fn translate(self, program: &mut Program<'a>) {
-        self.into_iter().for_each(|x| x.translate(program));
+    fn translate(self, program: &mut Program<'a>) -> Result<(), SemanticError<'a>> {
+        for statement in self {
+            statement.translate(program)?;
+        }
+        Ok(())
     }
 }
