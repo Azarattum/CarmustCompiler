@@ -122,16 +122,18 @@ pub fn block<'a>(
         x => Some(Token::Symbol(x)),
     };
 
-    let block = iter::from_fn(|| match statement(stream) {
-        Ok(decl) => Some(Ok(decl)),
-        Err(error) if error.found == expected => None,
-        Err(error) => Some(Err(error)),
-    })
-    .collect();
+    let mut block = Vec::new();
+    loop {
+        match statement(stream) {
+            Ok(decl) => block.push(decl),
+            Err(error) if error.found == expected => break,
+            Err(error) => return Err(error),
+        }
+    }
 
     if terminator != "" {
         symbol(stream, terminator)?;
     }
 
-    return block;
+    return Ok(block);
 }
