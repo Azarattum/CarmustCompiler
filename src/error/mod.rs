@@ -2,6 +2,7 @@ use colored::Colorize;
 use std::{
     cmp::max,
     fmt::{self, Debug},
+    process::exit,
 };
 
 use crate::Token;
@@ -52,7 +53,7 @@ impl<'a> SyntaxError<'a> {
         }
     }
 
-    pub fn error(&self, code: &str, filename: &str) -> String {
+    pub fn report(&self, code: &str, filename: &str) -> String {
         let token = self.slice();
         let (line, char) = SyntaxError::lookup(code, token);
         let pad = (line + 2).to_string().len() + 2;
@@ -94,5 +95,10 @@ impl<'a> SyntaxError<'a> {
             "| ".blue().bold(),
             snippet
         )
+    }
+
+    pub fn crash(&self, code: &str, filename: &str) -> ! {
+        println!("{}", self.report(code, filename));
+        exit(1);
     }
 }
