@@ -1,3 +1,5 @@
+pub mod assembly;
+pub mod compile;
 pub mod semantic;
 pub mod syntax;
 
