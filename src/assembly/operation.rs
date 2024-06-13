@@ -1,14 +1,14 @@
-use crate::{ast::DataType, error::assembly::AssemblyError, intermediate::Operation};
+use crate::{ast::Primitive, error::assembly::AssemblyError, intermediate::Operation};
 
 pub trait AssemblablePart {
     fn assemble<T: FnMut(bool) -> Result<String, AssemblyError>>(
         &self,
         allocate: T,
-        datatype: DataType,
+        datatype: Primitive,
         lhs: String,
         rhs: String,
     ) -> Result<Vec<String>, AssemblyError>;
-    fn instruction(&self, datatype: DataType) -> &'static str;
+    fn instruction(&self, datatype: Primitive) -> &'static str;
     fn arity(&self) -> (usize, usize, bool);
 }
 
@@ -16,7 +16,7 @@ impl AssemblablePart for Operation {
     fn assemble<T: FnMut(bool) -> Result<String, AssemblyError>>(
         &self,
         mut allocate: T,
-        datatype: DataType,
+        datatype: Primitive,
         lhs: String,
         rhs: String,
     ) -> Result<Vec<String>, AssemblyError> {
@@ -56,7 +56,7 @@ impl AssemblablePart for Operation {
         })
     }
 
-    fn instruction(&self, datatype: DataType) -> &'static str {
+    fn instruction(&self, datatype: Primitive) -> &'static str {
         match self {
             Self::Mov => "mov",
             Self::Add => "add",

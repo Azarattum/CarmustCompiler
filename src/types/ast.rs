@@ -8,6 +8,26 @@ pub enum Primitive<'a> {
     Custom(&'a str),
 }
 
+impl Primitive<'_> {
+    pub fn size(&self) -> Option<usize> {
+        match self {
+            Self::Long => Some(8),
+            Self::Int => Some(4),
+            Self::Float => Some(4),
+            Self::Short => Some(2),
+            Self::Char => Some(1),
+            _ => None,
+        }
+    }
+
+    pub fn floating(&self) -> bool {
+        match self {
+            Self::Float => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum DataType<'a> {
     Primitive(Primitive<'a>),
@@ -17,26 +37,17 @@ pub enum DataType<'a> {
 impl DataType<'_> {
     pub fn size(&self) -> Option<usize> {
         match self {
-            Self::Primitive(Primitive::Long) => Some(8),
-            Self::Primitive(Primitive::Int) => Some(4),
-            Self::Primitive(Primitive::Float) => Some(4),
-            Self::Primitive(Primitive::Short) => Some(2),
-            Self::Primitive(Primitive::Char) => Some(1),
-            Self::Array(Primitive::Long, size) => Some(size * 8),
-            Self::Array(Primitive::Int, size) => Some(size * 4),
-            Self::Array(Primitive::Float, size) => Some(size * 4),
-            Self::Array(Primitive::Short, size) => Some(size * 2),
-            Self::Array(Primitive::Char, size) => Some(size * 1),
+            Self::Primitive(primitive) => primitive.size(),
+            Self::Array(primitive, size) if primitive.size().is_some() => {
+                Some(size * primitive.size().unwrap())
+            }
             _ => None,
         }
     }
 
     pub fn floating(&self) -> bool {
-        match self {
-            Self::Primitive(Primitive::Float) => true,
-            Self::Array(Primitive::Float, _) => true,
-            _ => false,
-        }
+        let (Self::Primitive(primitive) | Self::Array(primitive, _)) = self;
+        primitive.floating()
     }
 }
 

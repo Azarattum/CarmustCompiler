@@ -140,7 +140,7 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
 
     for (address, instruction) in program.instructions.iter().enumerate() {
         // TODO: check type for the right register
-        let datatype = DataType::Primitive(Primitive::Int);
+        let datatype = Primitive::Int;
         let lhs = process_operand(&instruction.operand1, address, false, false)?;
         let rhs = process_operand(&instruction.operand2, address, false, false)?;
 
