@@ -1,8 +1,12 @@
 use std::fmt::Debug;
 
-#[derive(Debug)]
+use crate::ast::Data;
+
+#[derive(Debug, PartialEq)]
 pub enum Operation {
     Str,
+    Ldr,
+    Ldg,
     Mov,
     Add,
     Sub,
@@ -19,14 +23,23 @@ pub enum Operation {
     Ret,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Operand<'a> {
     Identifier(&'a str),
-    Literal(i64),
     Address(usize),
     Asm(&'a str),
+    Data(Data),
     Temp,
     None,
+}
+
+impl ToString for Data {
+    fn to_string(&self) -> String {
+        match self {
+            Data::Float(x) => format!("{x:e}"),
+            Data::Integer(x) => format!("{x}"),
+        }
+    }
 }
 
 pub struct Instruction<'a> {
@@ -40,7 +53,8 @@ impl Debug for Operand<'_> {
         match self {
             Operand::Address(x) => write!(f, "@{}", x),
             Operand::Identifier(x) => write!(f, "'{}'", x),
-            Operand::Literal(x) => write!(f, "{}", x),
+            Operand::Data(Data::Float(x)) => write!(f, "{:e}", x),
+            Operand::Data(Data::Integer(x)) => write!(f, "{}", x),
             Operand::Temp => write!(f, "@"),
             Operand::None => write!(f, ""),
             Operand::Asm(x) => write!(f, "{}", x),
@@ -57,3 +71,6 @@ impl Debug for Instruction<'_> {
         )
     }
 }
+
+pub const BYTE: Operand = Operand::Data(Data::Integer(255));
+pub const ZERO: Operand = Operand::Data(Data::Integer(0));

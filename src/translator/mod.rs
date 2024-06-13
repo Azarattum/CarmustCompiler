@@ -1,13 +1,14 @@
-mod intermediate;
+pub mod intermediate;
 pub mod program;
 
 use crate::{
     ast::{
-        Assignment, BinaryOperator, Expression, Loop, Statement, UnaryOperator, Value, Variable,
+        Assignment, BinaryOperator, Data, Expression, Loop, Pointer, Statement, UnaryOperator,
+        Value, Variable,
     },
     semantic::SemanticError,
 };
-use intermediate::{Operand, Operation};
+use intermediate::{Operand, Operation, BYTE, ZERO};
 use program::Program;
 
 pub trait Translatable<'a> {
@@ -81,15 +82,17 @@ impl<'a> Translatable<'a> for Variable<'a> {
         match self.assignment {
             Some(Assignment {
                 name,
-                // TODO: support definitions for other types
-                value: Expression::Value(Value::Integer(value)),
-            }) => program.define_variable(name, self.datatype, Some(value)),
+                value: Expression::Value(Value::Data(data)),
+            }) => program.define_variable(name, self.datatype, Some(data))?,
             Some(_) | None => {
                 program.define_variable(&self.name, self.datatype, None)?;
-                self.assignment.and_then(|x| Some(x.translate(program)));
-                Ok(())
             }
         }
+        if !program.toplevel() && let Some(assignment) = self.assignment {
+            assignment.translate(program)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -111,20 +114,30 @@ impl<'a> Translatable<'a> for Expression<'a> {
     fn translate(self, program: &mut Program<'a>) -> Result<(), SemanticError<'a>> {
         match self {
             Self::Value(value) => {
-                let operand = match value {
-                    Value::Integer(literal) => Operand::Literal(literal),
-                    Value::Identifier(identifier) => {
+                match value {
+                    Value::Data(data) => {
+                        program.instruct(Operation::Mov, Operand::Temp, Operand::Data(data));
+                    }
+                    Value::Pointer(
+                        Pointer::Array(identifier, _) | Pointer::Identifier(identifier),
+                    ) => {
                         if !program.is_defined(identifier) {
                             return Err(SemanticError {
                                 message: format!("Usage of undefined variable '{}'", identifier),
                                 token: Some(identifier),
                             });
                         }
-                        Operand::Identifier(identifier)
+                        program.instruct(
+                            if program.is_global(identifier) {
+                                Operation::Ldg
+                            } else {
+                                Operation::Ldr
+                            },
+                            Operand::Temp,
+                            Operand::Identifier(identifier),
+                        );
                     }
-                    _ => todo!(),
                 };
-                program.instruct(Operation::Mov, Operand::Temp, operand);
             }
             Self::Unary { op, lhs } => {
                 lhs.translate(program)?;
@@ -133,9 +146,13 @@ impl<'a> Translatable<'a> for Expression<'a> {
                         program.instruct(Operation::Neg, program.last(), Operand::None);
                     }
                     UnaryOperator::Inversion => {
-                        program.instruct(Operation::Cmp, program.last(), Operand::Literal(0));
+                        program.instruct(
+                            Operation::Cmp,
+                            program.last(),
+                            Operand::Data(Data::Integer(0)),
+                        );
                         program.instruct(Operation::CSet, Operand::Asm("eq"), Operand::None);
-                        program.instruct(Operation::And, program.last(), Operand::Literal(255));
+                        program.instruct(Operation::And, program.last(), BYTE);
                     }
                 }
             }
@@ -144,6 +161,7 @@ impl<'a> Translatable<'a> for Expression<'a> {
                 let operand1 = program.last();
                 rhs.translate(program)?;
                 let operand2 = program.last();
+
                 match op {
                     BinaryOperator::Addition => {
                         program.instruct(Operation::Add, operand1, operand2)
@@ -180,44 +198,44 @@ impl<'a> Translatable<'a> for Expression<'a> {
                     BinaryOperator::Equal => {
                         program.instruct(Operation::Cmp, operand1, operand2);
                         program.instruct(Operation::CSet, Operand::Asm("eq"), Operand::None);
-                        program.instruct(Operation::And, program.last(), Operand::Literal(255));
+                        program.instruct(Operation::And, program.last(), BYTE);
                     }
                     BinaryOperator::NotEqual => {
                         program.instruct(Operation::Cmp, operand1, operand2);
                         program.instruct(Operation::CSet, Operand::Asm("ne"), Operand::None);
-                        program.instruct(Operation::And, program.last(), Operand::Literal(255));
+                        program.instruct(Operation::And, program.last(), BYTE);
                     }
                     BinaryOperator::Greater => {
                         program.instruct(Operation::Cmp, operand1, operand2);
                         program.instruct(Operation::CSet, Operand::Asm("gt"), Operand::None);
-                        program.instruct(Operation::And, program.last(), Operand::Literal(255));
+                        program.instruct(Operation::And, program.last(), BYTE);
                     }
                     BinaryOperator::Less => {
                         program.instruct(Operation::Cmp, operand1, operand2);
                         program.instruct(Operation::CSet, Operand::Asm("lt"), Operand::None);
-                        program.instruct(Operation::And, program.last(), Operand::Literal(255));
+                        program.instruct(Operation::And, program.last(), BYTE);
                     }
                     BinaryOperator::GreaterEqual => {
                         program.instruct(Operation::Cmp, operand1, operand2);
                         program.instruct(Operation::CSet, Operand::Asm("ge"), Operand::None);
-                        program.instruct(Operation::And, program.last(), Operand::Literal(255));
+                        program.instruct(Operation::And, program.last(), BYTE);
                     }
                     BinaryOperator::LessEqual => {
                         program.instruct(Operation::Cmp, operand1, operand2);
                         program.instruct(Operation::CSet, Operand::Asm("le"), Operand::None);
-                        program.instruct(Operation::And, program.last(), Operand::Literal(255));
+                        program.instruct(Operation::And, program.last(), BYTE);
                     }
                     BinaryOperator::And => {
                         program.instruct(Operation::And, operand1, operand2);
-                        program.instruct(Operation::Cmp, program.last(), Operand::Literal(0));
+                        program.instruct(Operation::Cmp, program.last(), ZERO);
                         program.instruct(Operation::CSet, Operand::Asm("ne"), Operand::None);
-                        program.instruct(Operation::And, program.last(), Operand::Literal(255));
+                        program.instruct(Operation::And, program.last(), BYTE);
                     }
                     BinaryOperator::Or => {
                         program.instruct(Operation::Orr, operand1, operand2);
-                        program.instruct(Operation::Cmp, program.last(), Operand::Literal(0));
+                        program.instruct(Operation::Cmp, program.last(), ZERO);
                         program.instruct(Operation::CSet, Operand::Asm("ne"), Operand::None);
-                        program.instruct(Operation::And, program.last(), Operand::Literal(255));
+                        program.instruct(Operation::And, program.last(), BYTE);
                     }
                 }
             }
