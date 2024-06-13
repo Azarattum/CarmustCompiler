@@ -60,17 +60,11 @@ impl<'a> Translatable<'a> for Assignment<'a> {
                 token: Some(self.name),
             });
         }
-        if !program.is_defined(&self.name) {
-            return Err(SemanticError {
-                message: format!("'{}' is not defined!", self.name),
-                token: Some(self.name),
-            });
-        }
 
         self.value.translate(program)?;
         program.instruct(
             Operation::Str,
-            Operand::Identifier(self.name),
+            Operand::Identifier(program.infer_name(self.name)?),
             program.last(),
         );
         Ok(())
@@ -121,20 +115,14 @@ impl<'a> Translatable<'a> for Expression<'a> {
                     Value::Pointer(
                         Pointer::Array(identifier, _) | Pointer::Identifier(identifier),
                     ) => {
-                        if !program.is_defined(identifier) {
-                            return Err(SemanticError {
-                                message: format!("Usage of undefined variable '{}'", identifier),
-                                token: Some(identifier),
-                            });
-                        }
                         program.instruct(
-                            if program.is_global(identifier) {
+                            if program.is_global(identifier)? {
                                 Operation::Ldg
                             } else {
                                 Operation::Ldr
                             },
                             Operand::Temp,
-                            Operand::Identifier(identifier),
+                            Operand::Identifier(program.infer_name(identifier)?),
                         );
                     }
                 };

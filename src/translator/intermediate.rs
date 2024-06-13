@@ -24,10 +24,10 @@ pub enum Operation {
 }
 
 #[derive(Clone, PartialEq)]
-pub enum Operand<'a> {
-    Identifier(&'a str),
+pub enum Operand {
+    Identifier(String),
+    Asm(&'static str),
     Address(usize),
-    Asm(&'a str),
     Data(Data),
     Temp,
     None,
@@ -42,13 +42,13 @@ impl ToString for Data {
     }
 }
 
-pub struct Instruction<'a> {
+pub struct Instruction {
     pub operation: Operation,
-    pub operand1: Operand<'a>,
-    pub operand2: Operand<'a>,
+    pub operand1: Operand,
+    pub operand2: Operand,
 }
 
-impl Debug for Operand<'_> {
+impl Debug for Operand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Operand::Address(x) => write!(f, "@{}", x),
@@ -62,7 +62,7 @@ impl Debug for Operand<'_> {
     }
 }
 
-impl Debug for Instruction<'_> {
+impl Debug for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

@@ -25,14 +25,13 @@ impl Assemblable for Program<'_> {
 
 fn globals(program: &Program) -> Result<String, AssemblyError> {
     let globals = program
-        .globals()
-        .into_iter()
+        .globals
+        .iter()
         .map(|(name, (_, value))| {
             let data = match *value {
                 // TODO: proper type casts (looking at datatype)
-                Some(Data::Integer(x)) => x,
-                Some(Data::Float(x)) => (x as f32).to_bits() as i64,
-                _ => return "".to_owned(),
+                Data::Integer(x) => x,
+                Data::Float(x) => (x as f32).to_bits() as i64,
             };
             format!("{name}:\n  .word {data}")
         })
@@ -60,7 +59,7 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
 
         if !temp {
             registers[index] = program
-                .instructions()
+                .instructions
                 .iter()
                 .rposition(|x| {
                     x.operand1 == Operand::Address(address)
@@ -81,7 +80,7 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
         match stack.get(identifier) {
             Some(&pointer) => Ok(format!("[sp, {pointer}]")),
             None => {
-                match program.globals().get(identifier) {
+                match program.globals.get(identifier) {
                     Some(_) => Ok(format!("{identifier}@GOTPAGE")),
                     _ => {
                         let all: usize = *stack.values().max().unwrap_or(&program.stack_size());
@@ -114,7 +113,7 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
         })
     };
 
-    for (address, instruction) in program.instructions().iter().enumerate() {
+    for (address, instruction) in program.instructions.iter().enumerate() {
         // TODO: check type for the right register
         let lhs = process_operand(&instruction.operand1, address, false, false)?;
         let rhs = process_operand(&instruction.operand2, address, false, false)?;

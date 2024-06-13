@@ -6,59 +6,75 @@ use crate::{
 use std::{collections::HashMap, fmt::Debug};
 
 pub struct Program<'a> {
-    scope: Vec<HashMap<&'a str, (DataType<'a>, Option<Data>)>>,
+    pub globals: HashMap<String, (DataType<'a>, Data)>,
+    pub locals: HashMap<String, DataType<'a>>,
+    pub instructions: Vec<Instruction>,
+
     types: HashMap<&'a str, DataType<'a>>,
-    instructions: Vec<Instruction<'a>>,
-    stack: usize,
+    scope: usize,
 }
 
 impl<'a> Program<'a> {
     pub fn new() -> Self {
         Program {
-            stack: 0,
+            scope: 0,
             types: HashMap::new(),
             instructions: Vec::new(),
-            scope: vec![HashMap::new()],
+            locals: HashMap::new(),
+            globals: HashMap::new(),
         }
     }
 
     pub fn toplevel(&self) -> bool {
-        self.scope.len() == 1
-    }
-
-    pub fn globals(&self) -> &HashMap<&'a str, (DataType<'a>, Option<Data>)> {
-        &self.scope[0]
-    }
-
-    pub fn current_scope(&mut self) -> &mut HashMap<&'a str, (DataType<'a>, Option<Data>)> {
-        let index = self.scope.len() - 1;
-        unsafe { self.scope.get_unchecked_mut(index) }
+        self.scope == 0
     }
 
     pub fn push_scope(&mut self) -> () {
-        self.scope.push(HashMap::new());
+        self.scope += 1;
     }
 
     pub fn pop_scope(&mut self) -> () {
-        self.scope.pop();
+        self.scope -= 1;
     }
 
-    pub fn is_defined(&self, name: &'a str) -> bool {
-        self.scope.iter().any(|scope| scope.contains_key(name))
+    fn infer_scope(&self, name: &'a str) -> Result<usize, SemanticError<'a>> {
+        (1..=self.scope)
+            .rev()
+            .find(|i| self.locals.contains_key(format!("{name}_{i}").as_str()))
+            .or_else(|| {
+                if self.globals.contains_key(format!("{name}_0").as_str()) {
+                    Some(0)
+                } else {
+                    None
+                }
+            })
+            .ok_or(SemanticError {
+                message: format!("'{}' is not defined!", name),
+                token: Some(name),
+            })
     }
 
-    pub fn is_global(&self, name: &'a str) -> bool {
-        self.globals().contains_key(name)
+    pub fn infer_name(&self, name: &'a str) -> Result<String, SemanticError<'a>> {
+        let scope = self.infer_scope(name)?;
+        Ok(format!("{name}_{}", scope))
     }
 
-    pub fn is_defined_here(&mut self, name: &'a str) -> bool {
-        self.current_scope().contains_key(name)
+    pub fn is_global(&self, name: &'a str) -> Result<bool, SemanticError<'a>> {
+        Ok(self.infer_scope(name)? == 0)
     }
 
-    pub fn resolve(&self, datatype: DataType<'a>) -> Result<DataType<'a>, SemanticError<'a>> {
+    fn is_defined_here(&mut self, name: &'a str) -> bool {
+        self.locals.contains_key(self.local_name(name).as_str())
+    }
+
+    fn local_name(&self, name: &'a str) -> String {
+        format!("{name}_{}", self.scope)
+    }
+
+    fn resolve_type(&self, datatype: DataType<'a>) -> Result<DataType<'a>, SemanticError<'a>> {
         match datatype {
             DataType::Primitive(Primitive::Custom(alias)) => match self.types.get(alias) {
-                Some(datatype) => self.resolve(*datatype),
+                Some(datatype) => self.resolve_type(*datatype),
                 None => Err(SemanticError {
                     message: format!("Type '{}' is not defined!", alias),
                     token: Some(alias),
@@ -81,19 +97,22 @@ impl<'a> Program<'a> {
             });
         }
 
-        let datatype = self.resolve(datatype)?;
-        self.stack += datatype.size().unwrap();
+        let datatype = self.resolve_type(datatype)?;
         if self.toplevel() {
-            if value.is_none() {
-                return Err(SemanticError {
-                    message: format!("Top-level variable '{}' must be initialized!", name),
-                    token: Some(name),
-                });
+            match value {
+                None => {
+                    return Err(SemanticError {
+                        message: format!("Top-level variable '{}' must be initialized!", name),
+                        token: Some(name),
+                    })
+                }
+                Some(value) => {
+                    self.globals
+                        .insert(self.local_name(name), (datatype, value));
+                }
             }
-
-            self.current_scope().insert(name, (datatype, value));
         } else {
-            self.current_scope().insert(name, (datatype, None));
+            self.locals.insert(self.local_name(name), datatype);
         }
 
         Ok(())
@@ -108,11 +127,11 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
-    pub fn last(&self) -> Operand<'a> {
+    pub fn last(&self) -> Operand {
         Operand::Address(self.instructions.len() - 1)
     }
 
-    pub fn instruct(&mut self, operation: Operation, operand1: Operand<'a>, operand2: Operand<'a>) {
+    pub fn instruct(&mut self, operation: Operation, operand1: Operand, operand2: Operand) {
         self.instructions.push(Instruction {
             operation,
             operand1,
@@ -120,23 +139,25 @@ impl<'a> Program<'a> {
         });
     }
 
-    pub fn instructions(&self) -> &Vec<Instruction<'a>> {
-        &self.instructions
-    }
-
     pub fn stack_size(&self) -> usize {
-        self.stack + (16 - self.stack % 16)
+        let size = self
+            .locals
+            .iter()
+            .map(|(_, &datatype)| datatype.size())
+            .sum::<Option<usize>>()
+            .unwrap_or(0);
+
+        size + (16 - size % 16)
     }
 }
 
 impl<'a> Debug for Program<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "globals:\n")?;
-        for (key, (_, value)) in self.globals().iter() {
+        for (key, (_, value)) in self.globals.iter() {
             match value {
-                Some(Data::Integer(x)) => write!(f, "  {} = {}\n", key, x)?,
-                Some(Data::Float(x)) => write!(f, "  {} = {:e}\n", key, x)?,
-                _ => (),
+                Data::Integer(x) => write!(f, "  {} = {}\n", key, x)?,
+                Data::Float(x) => write!(f, "  {} = {:e}\n", key, x)?,
             }
         }
         write!(f, "\nmain:\n")?;
