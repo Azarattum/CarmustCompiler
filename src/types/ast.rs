@@ -17,17 +17,25 @@ pub enum DataType<'a> {
 impl DataType<'_> {
     pub fn size(&self) -> Option<usize> {
         match self {
+            Self::Primitive(Primitive::Long) => Some(8),
             Self::Primitive(Primitive::Int) => Some(4),
             Self::Primitive(Primitive::Float) => Some(4),
             Self::Primitive(Primitive::Short) => Some(2),
-            Self::Primitive(Primitive::Long) => Some(4),
             Self::Primitive(Primitive::Char) => Some(1),
+            Self::Array(Primitive::Long, size) => Some(size * 8),
             Self::Array(Primitive::Int, size) => Some(size * 4),
             Self::Array(Primitive::Float, size) => Some(size * 4),
             Self::Array(Primitive::Short, size) => Some(size * 2),
-            Self::Array(Primitive::Long, size) => Some(size * 4),
             Self::Array(Primitive::Char, size) => Some(size * 1),
             _ => None,
+        }
+    }
+
+    pub fn floating(&self) -> bool {
+        match self {
+            Self::Primitive(Primitive::Float) => true,
+            Self::Array(Primitive::Float, _) => true,
+            _ => false,
         }
     }
 }

@@ -6,9 +6,11 @@
     "conds",
     "cset",
     "GOTPAGE",
+    "hword",
     "Peekable",
     "returnment",
     "rposition",
-    "sdiv"
+    "sdiv",
+    "xword"
   ]
 }

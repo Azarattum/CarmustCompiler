@@ -24,19 +24,40 @@ impl Assemblable for Program<'_> {
 }
 
 fn globals(program: &Program) -> Result<String, AssemblyError> {
-    let globals = program
+    program
         .globals
         .iter()
-        .map(|(name, (_, value))| {
+        .map(|(name, (datatype, value))| {
             let data = match *value {
-                // TODO: proper type casts (looking at datatype)
-                Data::Integer(x) => x,
-                Data::Float(x) => (x as f32).to_bits() as i64,
+                Data::Integer(x) => {
+                    if datatype.floating() {
+                        (x as f32).to_bits() as i64
+                    } else {
+                        x as i64
+                    }
+                }
+                Data::Float(x) => {
+                    if datatype.floating() {
+                        (x as f32).to_bits() as i64
+                    } else {
+                        x as i64
+                    }
+                }
             };
-            format!("{name}:\n  .word {data}")
+            let size = match datatype.size() {
+                Some(8) => "xword",
+                Some(4) => "word",
+                Some(2) => "hword",
+                Some(1) => "byte",
+                _ => {
+                    return Err(AssemblyError {
+                        message: format!("Unsupported datatype: {datatype:?}"),
+                    })
+                }
+            };
+            Ok(format!("{name}:\n  .{size} {data}"))
         })
-        .collect();
-    Ok(globals)
+        .collect()
 }
 
 fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
