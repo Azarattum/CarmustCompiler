@@ -25,14 +25,19 @@ pub fn function<'a>(
     primitive: Primitive<'a>,
     identifier: &'a str,
 ) -> Result<Function<'a>, SyntaxError<'a>> {
-    // NOTE! Arguments are not supported in this implementation!
-    // TODO: add hint support to SyntaxError?
-    symbol(stream, ")")?;
+    match symbol(stream, ")") {
+        Ok(_) => (),
+        Err(SyntaxError { expected, found }) => {
+            return Err(SyntaxError {
+                expected: format!("{} because function arguments are not supported", expected),
+                found,
+            })
+        }
+    }
     symbol(stream, "{")?;
     let body = block(stream, "}")?;
 
     Ok(Function {
-        // NOTE! This implementation only supports primitive function return types
         datatype: DataType::Primitive(primitive),
         name: identifier,
         body: body,
@@ -96,10 +101,10 @@ pub fn assignment<'a>(
     })
 }
 
-// TODO: allow for arbitrary expressions?
 pub fn repetition<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
 ) -> Result<Loop<'a>, SyntaxError<'a>> {
+    // FUTURE: allow for arbitrary expressions
     symbol(stream, "(")?;
     let primitive = primitive(stream)?;
     let name = identifier(stream)?;
