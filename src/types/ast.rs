@@ -14,6 +14,24 @@ pub enum DataType<'a> {
     Array(Primitive<'a>, usize),
 }
 
+impl DataType<'_> {
+    pub fn size(&self) -> Option<usize> {
+        match self {
+            Self::Primitive(Primitive::Int) => Some(4),
+            Self::Primitive(Primitive::Float) => Some(4),
+            Self::Primitive(Primitive::Short) => Some(2),
+            Self::Primitive(Primitive::Long) => Some(4),
+            Self::Primitive(Primitive::Char) => Some(1),
+            Self::Array(Primitive::Int, size) => Some(size * 4),
+            Self::Array(Primitive::Float, size) => Some(size * 4),
+            Self::Array(Primitive::Short, size) => Some(size * 2),
+            Self::Array(Primitive::Long, size) => Some(size * 4),
+            Self::Array(Primitive::Char, size) => Some(size * 1),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Operator {
     Binary(BinaryOperator),
@@ -74,12 +92,22 @@ pub enum UnaryOperator {
     Inversion,
 }
 
-#[derive(Debug)]
-pub enum Value<'a> {
-    Identifier(&'a str),
-    Array(&'a str, usize),
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Data {
     Integer(i64),
     Float(f64),
+}
+
+#[derive(Debug)]
+pub enum Pointer<'a> {
+    Identifier(&'a str),
+    Array(&'a str, usize),
+}
+
+#[derive(Debug)]
+pub enum Value<'a> {
+    Data(Data),
+    Pointer(Pointer<'a>),
 }
 
 #[derive(Debug)]

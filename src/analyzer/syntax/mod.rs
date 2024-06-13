@@ -3,8 +3,10 @@ mod r#macro;
 use super::SyntaxError;
 use crate::{ast::Primitive, *};
 use analyzer::structure::{declaration, expression, repetition, typedef};
-use ast::{BinaryOperator, Statement, UnaryOperator, Value};
+use ast::{BinaryOperator, Data, Statement, UnaryOperator, Value};
 use std::iter::Peekable;
+
+// FUTURE: `syntax!` composition to define everything declaratively
 
 syntax!(
   statement() with stream -> Statement<'a>:
@@ -19,7 +21,6 @@ syntax!(
     Token::Keyword("for") => Statement::Loop(repetition(stream)?);
 );
 
-// TODO: syntax! composition
 syntax!(
   primitive() -> Primitive<'a>:
     Token::Keyword("int") => Primitive::Int;
@@ -47,9 +48,9 @@ syntax!(
 
 syntax!(
   literal() -> Value<'a>:
-    Token::Data(Literal::Floating(x), _) => Value::Float(x);
-    Token::Data(Literal::Integer(x), _) => Value::Integer(x);
-    Token::Data(Literal::Character(x), _) => Value::Integer(x as i64);
+    Token::Data(Literal::Floating(x), _) => Value::Data(Data::Float(x));
+    Token::Data(Literal::Integer(x), _) => Value::Data(Data::Integer(x));
+    Token::Data(Literal::Character(x), _) => Value::Data(Data::Integer(x as i64));
 );
 
 syntax!(

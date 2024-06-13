@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     analyzer::syntax::{binary_operator, literal, symbol, unary_operator},
-    ast::{Expression, Operator, Value},
+    ast::{Expression, Operator, Pointer, Value},
     Token, TokenStream,
 };
 use std::iter::Peekable;
@@ -100,10 +100,10 @@ fn term<'a>(
             completed = true;
 
             let index = index(stream);
-            let value = Expression::Value(match index {
-                Ok(index) => Value::Array(identifier, index),
-                Err(_) => Value::Identifier(identifier),
-            });
+            let value = Expression::Value(Value::Pointer(match index {
+                Ok(index) => Pointer::Array(identifier, index),
+                Err(_) => Pointer::Identifier(identifier),
+            }));
 
             mutations.push(Mutation::Expression(value));
             Ok(())
