@@ -1,7 +1,11 @@
+mod operation;
+
+use operation::AssemblablePart;
+
 use crate::{
-    ast::Data,
+    ast::{Data, DataType, Primitive},
     error::assembly::AssemblyError,
-    intermediate::{Operand, Operation},
+    intermediate::Operand,
     program::Program,
 };
 use std::collections::HashMap;
@@ -136,81 +140,33 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
 
     for (address, instruction) in program.instructions.iter().enumerate() {
         // TODO: check type for the right register
+        let datatype = DataType::Primitive(Primitive::Int);
         let lhs = process_operand(&instruction.operand1, address, false, false)?;
         let rhs = process_operand(&instruction.operand2, address, false, false)?;
 
-        match instruction.operation {
-            Operation::Mov => {
-                instructions.push(format!("mov {lhs}, {rhs}"));
-            }
-            Operation::Add => {
-                let result = process_operand(&Operand::Temp, address, false, false)?;
-                instructions.push(format!("add {result}, {lhs}, {rhs}"));
-            }
-            Operation::Sub => {
-                let result = process_operand(&Operand::Temp, address, false, false)?;
-                instructions.push(format!("sub {result}, {lhs}, {rhs}"));
-            }
-            Operation::Mul => {
-                let result = process_operand(&Operand::Temp, address, false, false)?;
-                instructions.push(format!("mul {result}, {lhs}, {rhs}"));
-            }
-            Operation::SDiv => {
-                let result = process_operand(&Operand::Temp, address, false, false)?;
-                instructions.push(format!("sdiv {result}, {lhs}, {rhs}"));
-            }
-            Operation::And => {
-                let result = process_operand(&Operand::Temp, address, false, false)?;
-                instructions.push(format!("and {result}, {lhs}, {rhs}"));
-            }
-            Operation::Orr => {
-                let result = process_operand(&Operand::Temp, address, false, false)?;
-                instructions.push(format!("orr {result}, {lhs}, {rhs}"));
-            }
-            Operation::Eor => {
-                let result = process_operand(&Operand::Temp, address, false, false)?;
-                instructions.push(format!("eor {result}, {lhs}, {rhs}"));
-            }
-            Operation::Asr => {
-                let result = process_operand(&Operand::Temp, address, false, false)?;
-                instructions.push(format!("asr {result}, {lhs}, {rhs}"))
-            }
-            Operation::Lsl => {
-                let result = process_operand(&Operand::Temp, address, false, false)?;
-                instructions.push(format!("lsl {result}, {lhs}, {rhs}"))
-            }
-            Operation::Cmp => {
-                instructions.push(format!("cmp {lhs}, {rhs}"));
-            }
-            Operation::CSet => {
-                let result = process_operand(&Operand::Temp, address, false, false)?;
-                instructions.push(format!("cset {result}, {lhs}"));
-            }
-            Operation::Str => {
-                instructions.push(format!("str {rhs}, {lhs}"));
-            }
-            Operation::Ldr => {
-                instructions.push(format!("ldr {lhs}, {rhs}"));
-            }
-            Operation::Ldg => {
-                let temp = process_operand(&Operand::Temp, 0, true, true)?;
-                instructions.push(format!("adrp {temp}, {rhs}"));
-                instructions.push(format!("ldr {temp}, [{temp}, {rhs}OFF]"));
-                instructions.push(format!("ldr {lhs}, [{temp}]"));
-            }
-            Operation::Neg => {
-                let result = process_operand(&Operand::Temp, address, false, false)?;
-                instructions.push(format!("neg {result}, {lhs}"));
-            }
-            Operation::Ret => {
-                if lhs != "w0" {
-                    instructions.push(format!("mov w0, {lhs}"));
-                }
-                instructions.push(format!("add sp, sp, {}", program.stack_size()));
-                instructions.push(format!("ret"));
-            }
-        }
+        let allocate = |temp: bool| {
+            let address = if temp { 0 } else { address };
+            process_operand(
+                &Operand::Temp,
+                address,
+                temp,
+                datatype.size().unwrap_or(0) > 4 || temp,
+            )
+        };
+
+        instructions.extend(
+            instruction
+                .operation
+                .assemble(allocate, datatype, lhs, rhs)?,
+        );
     }
+
+    let index = if let Some(x) = instructions.last() && x == "ret" {
+        instructions.len() - 1
+    } else {
+        instructions.len()
+    };
+    instructions.insert(index, format!("add sp, sp, {}", program.stack_size()));
 
     return Ok(instructions.join("\n  "));
 }
