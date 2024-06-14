@@ -89,7 +89,7 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
             None => match program.globals.get(identifier) {
                 Some(_) => Ok(format!("{identifier}@GOTPAGE")),
                 _ => {
-                    let all: usize = *stack.values().max().unwrap_or(&program.stack_size());
+                    let all: usize = *stack.values().min().unwrap_or(&program.stack_size());
                     let pointer = all - program.locals.get(identifier).unwrap().size();
                     stack.insert(identifier.to_owned(), pointer);
                     Ok(format!("[sp, {pointer}]"))
