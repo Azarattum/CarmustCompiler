@@ -3,13 +3,14 @@ pub mod program;
 
 use crate::{
     ast::{
-        Assignment, BinaryOperator, Data, Expression, Loop, Pointer, Statement, UnaryOperator,
-        Value, Variable,
+        Assignment, BinaryOperator, Data, Expression, Loop, Pointer, Primitive, Statement,
+        UnaryOperator, Value, Variable,
     },
     semantic::SemanticError,
 };
 use intermediate::{Operand, Operation, BYTE, ZERO};
 use program::Program;
+use std::cmp::max;
 
 pub trait Translatable<'a> {
     fn translate(self, program: &mut Program<'a>) -> Result<(), SemanticError<'a>>;
@@ -31,7 +32,8 @@ impl<'a> Translatable<'a> for Statement<'a> {
                 }
 
                 value.translate(program)?;
-                program.instruct(Operation::Ret, program.last(), Operand::None);
+                let operand = program.cast(program.last(), Some(Primitive::Int));
+                program.instruct(Operation::Ret, operand, Operand::None);
                 Ok(())
             }
             Self::Function(function) => {
@@ -62,10 +64,12 @@ impl<'a> Translatable<'a> for Assignment<'a> {
         }
 
         self.value.translate(program)?;
+        let identifier = program.infer_name(&self.name)?;
+        let value = program.cast(program.last(), program.type_of(&identifier));
         program.instruct(
             Operation::Str,
             Operand::Identifier(program.infer_name(self.name)?),
-            program.last(),
+            value,
         );
         Ok(())
     }
@@ -150,6 +154,10 @@ impl<'a> Translatable<'a> for Expression<'a> {
                 rhs.translate(program)?;
                 let operand2 = program.last();
 
+                let upcast = max(operand1.datatype(program), operand2.datatype(program));
+                let operand1 = program.cast(operand1, upcast);
+                let operand2 = program.cast(operand2, upcast);
+
                 match op {
                     BinaryOperator::Addition => {
                         program.instruct(Operation::Add, operand1, operand2)
@@ -158,7 +166,7 @@ impl<'a> Translatable<'a> for Expression<'a> {
                         program.instruct(Operation::Sub, operand1, operand2)
                     }
                     BinaryOperator::Division => {
-                        program.instruct(Operation::SDiv, operand1, operand2)
+                        program.instruct(Operation::Div, operand1, operand2)
                     }
                     BinaryOperator::Multiplication => {
                         program.instruct(Operation::Mul, operand1, operand2)
@@ -173,7 +181,7 @@ impl<'a> Translatable<'a> for Expression<'a> {
                         program.instruct(Operation::Eor, operand1, operand2)
                     }
                     BinaryOperator::Remainder => {
-                        program.instruct(Operation::SDiv, operand1.clone(), operand2.clone());
+                        program.instruct(Operation::Div, operand1.clone(), operand2.clone());
                         program.instruct(Operation::Mul, operand2, program.last());
                         program.instruct(Operation::Sub, operand1, program.last());
                     }

@@ -1,10 +1,12 @@
 mod operation;
 
-use operation::AssemblablePart;
-
 use crate::{
-    ast::Primitive, error::assembly::AssemblyError, intermediate::Operand, program::Program,
+    ast::{Data, Primitive},
+    error::assembly::AssemblyError,
+    intermediate::Operand,
+    program::Program,
 };
+use operation::AssemblablePart;
 use std::collections::HashMap;
 
 pub trait Assemblable {
@@ -53,13 +55,12 @@ fn globals(program: &Program) -> Result<String, AssemblyError> {
 fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
     let mut instructions = vec![format!("sub sp, sp, {}", program.stack_size())];
     let mut addresses: HashMap<usize, usize> = HashMap::new();
-    let mut stack: HashMap<&'a str, usize> = HashMap::new();
+    let mut stack: HashMap<String, usize> = HashMap::new();
     let mut registers = [0; 29];
 
     let mut allocate = |addresses: &mut HashMap<usize, usize>,
                         address: usize,
-                        temp: bool,
-                        long: bool|
+                        temp: bool|
      -> Result<String, AssemblyError> {
         let index = registers
             .iter()
@@ -80,43 +81,45 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
             addresses.insert(address, index);
         }
 
-        if long {
-            Ok(format!("x{index}"))
-        } else {
-            Ok(format!("w{index}"))
-        }
+        Ok(index.to_string())
     };
 
-    let mut lookup = |identifier: &'a str| -> Result<String, AssemblyError> {
+    let mut lookup = |identifier: &str| -> Result<String, AssemblyError> {
         match stack.get(identifier) {
             Some(&pointer) => Ok(format!("[sp, {pointer}]")),
-            None => {
-                match program.globals.get(identifier) {
-                    Some(_) => Ok(format!("{identifier}@GOTPAGE")),
-                    _ => {
-                        let all: usize = *stack.values().max().unwrap_or(&program.stack_size());
-                        let pointer = all - 4; // TODO: use datatype size
-                        stack.insert(identifier, pointer);
-                        Ok(format!("[sp, {pointer}]"))
-                    }
+            None => match program.globals.get(identifier) {
+                Some(_) => Ok(format!("{identifier}@GOTPAGE")),
+                _ => {
+                    let all: usize = *stack.values().max().unwrap_or(&program.stack_size());
+                    let pointer = all - program.locals.get(identifier).unwrap().size();
+                    stack.insert(identifier.to_owned(), pointer);
+                    Ok(format!("[sp, {pointer}]"))
                 }
-            }
+            },
         }
     };
 
-    let mut process_operand = |operand: &'a Operand,
+    let mut process_operand = |operand: &Operand,
                                address: usize,
-                               temp: bool,
-                               long: bool|
+                               datatype: Primitive,
+                               temp: bool|
      -> Result<String, AssemblyError> {
+        // Hack to work with pointers
+        let datatype = if temp { Primitive::Long } else { datatype };
         Ok(match operand {
-            Operand::Asm(x) => x.to_string(),
-            Operand::Data(x) => x.to_string(),
-            Operand::None => "".to_owned(),
-            Operand::Temp => allocate(&mut addresses, address, temp, long)?,
             Operand::Identifier(x) => lookup(x)?,
+            Operand::Data(Data::Float(x)) => format!("{x:e}"),
+            Operand::Data(x) => x.to_string(),
+            Operand::Asm(x) => x.to_string(),
+            Operand::None => "".to_owned(),
+            Operand::Temp => format!(
+                "{}{}",
+                as_register(datatype),
+                allocate(&mut addresses, address, temp)?
+            ),
             Operand::Address(x) => format!(
-                "w{}",
+                "{}{}",
+                as_register(datatype),
                 addresses.get(x).ok_or(AssemblyError {
                     message: format!("Operation at {x} does not have a result register!")
                 })?
@@ -124,25 +127,39 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
         })
     };
 
-    for (address, instruction) in program.instructions.iter().enumerate() {
-        // TODO: check type for the right register
-        let datatype = Primitive::Int;
-        let lhs = process_operand(&instruction.operand1, address, false, false)?;
-        let rhs = process_operand(&instruction.operand2, address, false, false)?;
+    for (address, cmd) in program.instructions.iter().enumerate() {
+        let result_type = cmd.datatype(program).ok_or(AssemblyError {
+            message: format!("Could not infer type of instruction at {address}: {cmd:?}"),
+        })?;
+
+        let lhs_type = cmd.operand1.datatype(program).unwrap_or(result_type);
+        let rhs_type = cmd.operand2.datatype(program).unwrap_or(result_type);
+
+        let lhs = process_operand(&cmd.operand1, address, lhs_type, false)?;
+        let rhs = process_operand(&cmd.operand2, address, rhs_type, false)?;
 
         let allocate = |temp: bool| {
             let address = if temp { 0 } else { address };
-            process_operand(&Operand::Temp, address, temp, datatype.size() > 4 || temp)
+            process_operand(&Operand::Temp, address, result_type, temp)
         };
 
         instructions.extend(
-            instruction
-                .operation
-                .assemble(allocate, datatype, lhs, rhs)?,
+            cmd.operation
+                .assemble(allocate, result_type, lhs, rhs)?
+                .iter()
+                .map(|x| {
+                    format!(
+                        "{x} ; {:?}, {:?} -> {:?}",
+                        cmd.operand1.datatype(program),
+                        cmd.operand2.datatype(program),
+                        cmd.datatype(program)
+                    )
+                })
+                .collect::<Vec<_>>(),
         );
     }
 
-    let index = if let Some(x) = instructions.last() && x == "ret" {
+    let index = if let Some(x) = instructions.last() && x.starts_with("ret") {
         instructions.len() - 1
     } else {
         instructions.len()
@@ -150,4 +167,12 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
     instructions.insert(index, format!("add sp, sp, {}", program.stack_size()));
 
     return Ok(instructions.join("\n  "));
+}
+
+fn as_register(datatype: Primitive) -> &'static str {
+    match datatype {
+        Primitive::Byte | Primitive::Short | Primitive::Int => "w",
+        Primitive::Float => "s",
+        Primitive::Long => "x",
+    }
 }

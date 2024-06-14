@@ -17,13 +17,15 @@ pub enum Operation {
     Asr,
     Orr,
     Eor,
-    SDiv,
+    Div,
     Mul,
     Neg,
     Cmp,
     CSet,
     And,
     Ret,
+    SCvtF,
+    FCvtZS,
 }
 
 #[derive(Clone, PartialEq)]
@@ -70,46 +72,30 @@ pub const BYTE: Operand = Operand::Data(Data::Integer(255));
 pub const ZERO: Operand = Operand::Data(Data::Integer(0));
 
 impl Operand {
-    pub fn datatype<'a>(
-        &self,
-        program: &'a Program,
-        address: Option<usize>,
-    ) -> Option<Primitive<'a>> {
+    pub fn datatype<'a>(&self, program: &'a Program) -> Option<Primitive> {
         match self {
-            Self::Address(x) if address.is_some() => {
-                program.instructions[*x].datatype(program, Some(*x))
-            }
+            Self::Address(x) => program.instructions[*x].datatype(program),
+            Self::Identifier(identifier) => program.type_of(identifier),
             Self::Data(Data::Integer(_)) => Some(Primitive::Int),
             Self::Data(Data::Float(_)) => Some(Primitive::Float),
             Self::Data(Data::Short(_)) => Some(Primitive::Short),
             Self::Data(Data::Byte(_)) => Some(Primitive::Byte),
             Self::Data(Data::Long(_)) => Some(Primitive::Long),
-            Self::Temp => {
-                let address = address?;
-                let position = program.instructions.iter().position(|x| {
-                    x.operand1 == Operand::Address(address)
-                        || x.operand2 == Operand::Address(address)
-                })?;
-                program.instructions[position].datatype(program, None)
-            }
-            Self::Identifier(x) => program
-                .locals
-                .get(x)
-                .or_else(|| program.globals.get(x).and_then(|x| Some(&x.0)))
-                .and_then(|x| Some(x.primitive())),
             _ => None,
         }
     }
 }
 
 impl Instruction {
-    pub fn datatype<'a>(
-        &self,
-        program: &'a Program,
-        address: Option<usize>,
-    ) -> Option<Primitive<'a>> {
-        let type1 = self.operand1.datatype(program, address);
-        let type2 = self.operand2.datatype(program, address);
+    pub fn datatype<'a>(&self, program: &'a Program) -> Option<Primitive> {
+        match self.operation {
+            Operation::SCvtF => return Some(Primitive::Float),
+            Operation::FCvtZS => return Some(Primitive::Int),
+            _ => (),
+        }
+
+        let type1 = self.operand1.datatype(program);
+        let type2 = self.operand2.datatype(program);
 
         match (type1, type2) {
             (Some(x), Some(y)) if x == y => return Some(x),

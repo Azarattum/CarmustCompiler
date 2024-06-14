@@ -84,6 +84,13 @@ impl<'a> Program<'a> {
         }
     }
 
+    pub fn type_of(&self, identifier: &'a str) -> Option<Primitive> {
+        self.locals
+            .get(identifier)
+            .or_else(|| self.globals.get(identifier).and_then(|x| Some(&x.0)))
+            .and_then(|x| Some(x.0))
+    }
+
     pub fn define_variable(
         &mut self,
         name: &'a str,

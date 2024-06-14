@@ -8,7 +8,7 @@ pub trait AssemblablePart {
         lhs: String,
         rhs: String,
     ) -> Result<Vec<String>, AssemblyError>;
-    fn instruction(&self, datatype: Primitive) -> &'static str;
+    fn instruction(&self, datatype: Primitive) -> String;
     fn arity(&self) -> (usize, usize, bool);
 }
 
@@ -30,7 +30,7 @@ impl AssemblablePart for Operation {
                 ]
             }
             Operation::Ret => vec![
-                if lhs != "w0" && lhs != "x0" {
+                if lhs != "w0" && lhs != "x0" && lhs != "s0" {
                     Some(format!("mov w0, {lhs}"))
                 } else {
                     None
@@ -56,13 +56,13 @@ impl AssemblablePart for Operation {
         })
     }
 
-    fn instruction(&self, datatype: Primitive) -> &'static str {
-        match self {
+    fn instruction(&self, datatype: Primitive) -> String {
+        let op = match self {
             Self::Mov => "mov",
             Self::Add => "add",
             Self::Sub => "sub",
             Self::Mul => "mul",
-            Self::SDiv => "sdiv",
+            Self::Div => "div",
             Self::And => "and",
             Self::Orr => "orr",
             Self::Eor => "eor",
@@ -75,6 +75,21 @@ impl AssemblablePart for Operation {
             Self::Ldg => "ldg",
             Self::Neg => "neg",
             Self::Ret => "ret",
+            Self::FCvtZS => "fcvtzs",
+            Self::SCvtF => "scvtf",
+        };
+
+        match (self, datatype) {
+            (Self::Mov | Self::Add | Self::Mul | Self::Sub | Self::Div, Primitive::Float) => {
+                format!("f{op}")
+            }
+            (Self::Div, Primitive::Byte | Primitive::Short | Primitive::Int | Primitive::Long) => {
+                format!("s{op}")
+            }
+            (Self::Str | Self::Ldr, Primitive::Byte) => format!("{op}b"),
+            (Self::Ldr, Primitive::Short) => format!("{op}sh"),
+            (Self::Str, Primitive::Short) => format!("{op}h"),
+            _ => op.to_owned(),
         }
     }
 
@@ -83,14 +98,16 @@ impl AssemblablePart for Operation {
             Operation::Add
             | Operation::Sub
             | Operation::Mul
-            | Operation::SDiv
+            | Operation::Div
             | Operation::And
             | Operation::Orr
             | Operation::Eor
             | Operation::Asr
             | Operation::Lsl => (2, 1, false),
+            Operation::Neg | Operation::CSet | Operation::FCvtZS | Operation::SCvtF => {
+                (1, 1, false)
+            }
             Operation::Cmp | Operation::Mov | Operation::Ldr => (2, 0, false),
-            Operation::Neg | Operation::CSet => (1, 1, false),
             Operation::Ret | Operation::Ldg => (0, 0, false),
             Operation::Str => (2, 0, true),
         }

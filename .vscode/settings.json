@@ -6,11 +6,13 @@
     "autoload",
     "conds",
     "cset",
+    "fcvtzs",
     "GOTPAGE",
     "hword",
     "Peekable",
     "returnment",
     "rposition",
+    "scvtf",
     "sdiv",
     "xword"
   ]
