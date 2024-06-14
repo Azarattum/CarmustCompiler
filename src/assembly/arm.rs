@@ -25,7 +25,7 @@ impl ImmediateCompat for f32 {
     fn represent(&self) -> String {
         match self.can_be_immediate() {
             true => format!("{self:e}"),
-            false => format!("={}", self.to_bits()),
+            false => format!("#{}", self.to_bits()),
         }
     }
 }

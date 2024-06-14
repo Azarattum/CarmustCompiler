@@ -103,8 +103,6 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
                                datatype: Primitive,
                                temp: bool|
      -> Result<String, AssemblyError> {
-        // Hack to work with pointers
-        let datatype = if temp { Primitive::Long } else { datatype };
         Ok(match operand {
             Operand::Identifier(x) => lookup(x)?,
             Operand::Data(x) => x.represent(),
@@ -136,9 +134,9 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
         let lhs = process_operand(&cmd.operand1, address, lhs_type, false)?;
         let rhs = process_operand(&cmd.operand2, address, rhs_type, false)?;
 
-        let allocate = |temp: bool| {
+        let allocate = |temp: bool, datatype: Primitive| {
             let address = if temp { 0 } else { address };
-            process_operand(&Operand::Temp, address, result_type, temp)
+            process_operand(&Operand::Temp, address, datatype, temp)
         };
 
         instructions.extend(

@@ -1,7 +1,7 @@
 use crate::{ast::Primitive, error::assembly::AssemblyError, intermediate::Operation};
 
 pub trait AssemblablePart {
-    fn assemble<T: FnMut(bool) -> Result<String, AssemblyError>>(
+    fn assemble<T: FnMut(bool, Primitive) -> Result<String, AssemblyError>>(
         &self,
         allocate: T,
         datatype: Primitive,
@@ -13,7 +13,7 @@ pub trait AssemblablePart {
 }
 
 impl AssemblablePart for Operation {
-    fn assemble<T: FnMut(bool) -> Result<String, AssemblyError>>(
+    fn assemble<T: FnMut(bool, Primitive) -> Result<String, AssemblyError>>(
         &self,
         mut allocate: T,
         datatype: Primitive,
@@ -21,9 +21,17 @@ impl AssemblablePart for Operation {
         rhs: String,
     ) -> Result<Vec<String>, AssemblyError> {
         Ok(match self {
-            Operation::Mov if rhs.starts_with("=") => vec![format!("ldr {lhs}, {rhs}")],
+            // Weird hack to pass immediate constants refer to:
+            //   https://stackoverflow.com/questions/64608307/how-do-i-move-a-floating-point-constant-into-an-fp-register
+            Operation::Mov if rhs.starts_with("#") && datatype == Primitive::Float => {
+                let temp = allocate(true, Primitive::Int)?;
+                vec![format!("mov {temp}, {rhs}"), format!("fmov {lhs}, {temp}")]
+            }
+            Operation::Mov if rhs.starts_with("=") => {
+                vec![format!("ldr {lhs}, {rhs}")]
+            }
             Self::Ldg => {
-                let temp = allocate(true)?;
+                let temp = allocate(true, Primitive::Long)?;
                 vec![
                     format!("adrp {temp}, {rhs}"),
                     format!("ldr {temp}, [{temp}, {rhs}OFF]"),
@@ -44,7 +52,7 @@ impl AssemblablePart for Operation {
             _ => {
                 let (operands, extra, inverted) = self.arity();
                 let mut args = (0..extra)
-                    .map(|_| allocate(false))
+                    .map(|_| allocate(false, datatype))
                     .collect::<Result<Vec<_>, _>>()?;
                 args.extend(([lhs, rhs])[0..operands].to_vec());
                 if inverted {
