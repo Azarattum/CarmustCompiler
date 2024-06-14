@@ -221,4 +221,5 @@ pub enum Statement<'a> {
     Type(Type<'a>),
     Loop(Loop<'a>),
     Return(Expression<'a>),
+    Noop,
 }

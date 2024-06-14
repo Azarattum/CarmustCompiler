@@ -50,6 +50,7 @@ impl<'a> Translatable<'a> for Statement<'a> {
                 program.pop_scope();
                 Ok(())
             }
+            Self::Noop => Ok(()),
         }
     }
 }

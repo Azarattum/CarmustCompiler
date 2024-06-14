@@ -19,6 +19,7 @@ syntax!(
     Token::Keyword("char") => declaration(stream, Datatype::Type(Compound (Primitive::Byte, 1)))?;
     Token::Identifier(identifier) => declaration(stream, Datatype::Alias(identifier))?;
     Token::Keyword("for") => Statement::Loop(repetition(stream)?);
+    Token::Symbol(";") => Statement::Noop;
 );
 
 syntax!(
