@@ -7,8 +7,9 @@ fn to_token<'a>(text: &'a str) -> Token {
     match text {
         x if KEYWORDS.contains(&x) => Token::Keyword(x),
         x if SYMBOLS.contains(&x) => Token::Symbol(x),
-        x if x.parse::<i64>().is_ok() => Token::Data(Literal::Integer(x.parse().unwrap()), x),
-        x if x.parse::<f64>().is_ok() => Token::Data(Literal::Floating(x.parse().unwrap()), x),
+        x if x.parse::<i32>().is_ok() => Token::Data(Literal::Integer(x.parse().unwrap()), x),
+        x if x.parse::<i64>().is_ok() => Token::Data(Literal::Long(x.parse().unwrap()), x),
+        x if x.parse::<f32>().is_ok() => Token::Data(Literal::Floating(x.parse().unwrap()), x),
         x if x.len() == 3 && x.trim_matches('\'').len() == 1 => {
             Token::Data(Literal::Character(x.chars().nth(1).unwrap()), x)
         }

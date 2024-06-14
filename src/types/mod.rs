@@ -14,8 +14,9 @@ pub enum Token<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Literal {
-    Integer(i64),
-    Floating(f64),
+    Integer(i32),
+    Long(i64),
+    Floating(f32),
     Character(char),
 }
 

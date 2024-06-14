@@ -16,7 +16,7 @@ syntax!(
     Token::Keyword("float") => declaration(stream, Primitive::Float)?;
     Token::Keyword("short") => declaration(stream, Primitive::Short)?;
     Token::Keyword("long") => declaration(stream, Primitive::Long)?;
-    Token::Keyword("char") => declaration(stream, Primitive::Char)?;
+    Token::Keyword("char") => declaration(stream, Primitive::Byte)?;
     Token::Identifier(identifier) => declaration(stream, Primitive::Custom(identifier))?;
     Token::Keyword("for") => Statement::Loop(repetition(stream)?);
 );
@@ -27,7 +27,7 @@ syntax!(
     Token::Keyword("float") => Primitive::Float;
     Token::Keyword("short") => Primitive::Short;
     Token::Keyword("long") => Primitive::Long;
-    Token::Keyword("char") => Primitive::Char;
+    Token::Keyword("char") => Primitive::Byte;
     Token::Identifier(identifier) => Primitive::Custom(identifier);
 );
 
@@ -48,9 +48,10 @@ syntax!(
 
 syntax!(
   literal() -> Value<'a>:
-    Token::Data(Literal::Floating(x), _) => Value::Data(Data::Float(x));
-    Token::Data(Literal::Integer(x), _) => Value::Data(Data::Integer(x));
-    Token::Data(Literal::Character(x), _) => Value::Data(Data::Integer(x as i64));
+  Token::Data(Literal::Character(x), _) => Value::Data(Data::Byte(x as i8));
+  Token::Data(Literal::Integer(x), _) => Value::Data(Data::Integer(x));
+  Token::Data(Literal::Floating(x), _) => Value::Data(Data::Float(x));
+  Token::Data(Literal::Long(x), _) => Value::Data(Data::Long(x));
 );
 
 syntax!(

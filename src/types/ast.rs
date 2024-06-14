@@ -1,11 +1,30 @@
-#[derive(Debug, Clone, Copy)]
+use std::cmp::Ordering;
+use std::fmt::Display;
+
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Primitive<'a> {
     Int,
     Float,
     Short,
     Long,
-    Char,
+    Byte,
     Custom(&'a str),
+}
+
+impl<'a> PartialOrd for Primitive<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let hierarchy = [
+            Primitive::Byte,
+            Primitive::Short,
+            Primitive::Int,
+            Primitive::Long,
+            Primitive::Float,
+        ];
+
+        let a = hierarchy.iter().position(|x| x == self);
+        let b = hierarchy.iter().position(|x| x == other);
+        a.partial_cmp(&b)
+    }
 }
 
 impl Primitive<'_> {
@@ -15,7 +34,7 @@ impl Primitive<'_> {
             Self::Int => Some(4),
             Self::Float => Some(4),
             Self::Short => Some(2),
-            Self::Char => Some(1),
+            Self::Byte => Some(1),
             _ => None,
         }
     }
@@ -45,9 +64,13 @@ impl DataType<'_> {
         }
     }
 
-    pub fn floating(&self) -> bool {
+    pub fn primitive(&self) -> Primitive<'_> {
         let (Self::Primitive(primitive) | Self::Array(primitive, _)) = self;
-        primitive.floating()
+        primitive.clone()
+    }
+
+    pub fn floating(&self) -> bool {
+        self.primitive().floating()
     }
 }
 
@@ -111,10 +134,37 @@ pub enum UnaryOperator {
     Inversion,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Display, Clone, Copy, PartialEq)]
 pub enum Data {
-    Integer(i64),
-    Float(f64),
+    Long(i64),
+    Integer(i32),
+    Float(f32),
+    Short(i16),
+    Byte(i8),
+}
+
+impl From<&Data> for f32 {
+    fn from(value: &Data) -> Self {
+        match *value {
+            Data::Float(x) => x,
+            Data::Byte(x) => x as f32,
+            Data::Long(x) => x as f32,
+            Data::Short(x) => x as f32,
+            Data::Integer(x) => x as f32,
+        }
+    }
+}
+
+impl From<&Data> for i64 {
+    fn from(value: &Data) -> Self {
+        match *value {
+            Data::Long(x) => x,
+            Data::Byte(x) => x as i64,
+            Data::Short(x) => x as i64,
+            Data::Float(x) => x as i64,
+            Data::Integer(x) => x as i64,
+        }
+    }
 }
 
 #[derive(Debug)]

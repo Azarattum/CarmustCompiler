@@ -156,8 +156,8 @@ impl<'a> Debug for Program<'a> {
         write!(f, "globals:\n")?;
         for (key, (_, value)) in self.globals.iter() {
             match value {
-                Data::Integer(x) => write!(f, "  {} = {}\n", key, x)?,
-                Data::Float(x) => write!(f, "  {} = {:e}\n", key, x)?,
+                Data::Float(x) => write!(f, "  {key} = {x:e}\n")?,
+                x => write!(f, "  {key} = {x}\n")?,
             }
         }
         write!(f, "\nmain:\n")?;

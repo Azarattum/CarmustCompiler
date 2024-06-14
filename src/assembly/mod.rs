@@ -32,21 +32,10 @@ fn globals(program: &Program) -> Result<String, AssemblyError> {
         .globals
         .iter()
         .map(|(name, (datatype, value))| {
-            let data = match *value {
-                Data::Integer(x) => {
-                    if datatype.floating() {
-                        (x as f32).to_bits() as i64
-                    } else {
-                        x as i64
-                    }
-                }
-                Data::Float(x) => {
-                    if datatype.floating() {
-                        (x as f32).to_bits() as i64
-                    } else {
-                        x as i64
-                    }
-                }
+            let data = if datatype.floating() {
+                f32::from(value).to_bits() as i64
+            } else {
+                i64::from(value)
             };
             let size = match datatype.size() {
                 Some(8) => "xword",
