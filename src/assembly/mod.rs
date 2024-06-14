@@ -48,6 +48,7 @@ fn globals(program: &Program) -> Result<String, AssemblyError> {
             };
             Ok(format!("{name}:\n  .{size} {data}"))
         })
+        .intersperse(Ok("\n".to_owned()))
         .collect()
 }
 
