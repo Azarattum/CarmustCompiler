@@ -139,20 +139,7 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
             process_operand(&Operand::Temp, address, datatype, temp)
         };
 
-        instructions.extend(
-            cmd.operation
-                .assemble(allocate, result_type, lhs, rhs)?
-                .iter()
-                .map(|x| {
-                    format!(
-                        "{x} ; {:?}, {:?} -> {:?}",
-                        cmd.operand1.datatype(program),
-                        cmd.operand2.datatype(program),
-                        cmd.datatype(program)
-                    )
-                })
-                .collect::<Vec<_>>(),
-        );
+        instructions.extend(cmd.operation.assemble(allocate, result_type, lhs, rhs)?);
     }
 
     let index = if let Some(x) = instructions.last() && x.starts_with("ret") {
