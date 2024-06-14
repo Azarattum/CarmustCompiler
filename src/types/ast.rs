@@ -1,18 +1,20 @@
 use std::cmp::Ordering;
 use std::fmt::Display;
 
-#[derive(Debug, Clone, PartialEq, Copy)]
-pub enum Primitive<'a> {
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Copy)]
+pub enum Primitive {
     Int,
     Float,
     Short,
     Long,
     Byte,
-    Custom(&'a str),
 }
 
-impl<'a> PartialOrd for Primitive<'a> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+#[derive(Debug, Clone, Copy)]
+pub struct Compound(pub Primitive, pub usize);
+
+impl<'a> Ord for Primitive {
+    fn cmp(&self, other: &Self) -> Ordering {
         let hierarchy = [
             Primitive::Byte,
             Primitive::Short,
@@ -23,19 +25,18 @@ impl<'a> PartialOrd for Primitive<'a> {
 
         let a = hierarchy.iter().position(|x| x == self);
         let b = hierarchy.iter().position(|x| x == other);
-        a.partial_cmp(&b)
+        a.cmp(&b)
     }
 }
 
-impl Primitive<'_> {
-    pub fn size(&self) -> Option<usize> {
+impl Primitive {
+    pub fn size(&self) -> usize {
         match self {
-            Self::Long => Some(8),
-            Self::Int => Some(4),
-            Self::Float => Some(4),
-            Self::Short => Some(2),
-            Self::Byte => Some(1),
-            _ => None,
+            Self::Long => 8,
+            Self::Int => 4,
+            Self::Float => 4,
+            Self::Short => 2,
+            Self::Byte => 1,
         }
     }
 
@@ -47,31 +48,16 @@ impl Primitive<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum DataType<'a> {
-    Primitive(Primitive<'a>),
-    Array(Primitive<'a>, usize),
+impl Compound {
+    pub fn size(&self) -> usize {
+        self.0.size() * self.1
+    }
 }
 
-impl DataType<'_> {
-    pub fn size(&self) -> Option<usize> {
-        match self {
-            Self::Primitive(primitive) => primitive.size(),
-            Self::Array(primitive, size) if primitive.size().is_some() => {
-                Some(size * primitive.size().unwrap())
-            }
-            _ => None,
-        }
-    }
-
-    pub fn primitive(&self) -> Primitive<'_> {
-        let (Self::Primitive(primitive) | Self::Array(primitive, _)) = self;
-        primitive.clone()
-    }
-
-    pub fn floating(&self) -> bool {
-        self.primitive().floating()
-    }
+#[derive(Debug, Clone, Copy)]
+pub enum Datatype<'a> {
+    Type(Compound),
+    Alias(&'a str),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -203,7 +189,7 @@ pub struct Loop<'a> {
 
 #[derive(Debug)]
 pub struct Variable<'a> {
-    pub datatype: DataType<'a>,
+    pub datatype: Datatype<'a>,
     pub name: &'a str,
     pub assignment: Option<Assignment<'a>>,
 }
@@ -216,14 +202,14 @@ pub struct Assignment<'a> {
 
 #[derive(Debug)]
 pub struct Function<'a> {
-    pub datatype: DataType<'a>,
+    pub datatype: Datatype<'a>,
     pub name: &'a str,
     pub body: Vec<Statement<'a>>,
 }
 
 #[derive(Debug)]
 pub struct Type<'a> {
-    pub datatype: DataType<'a>,
+    pub datatype: Datatype<'a>,
     pub name: &'a str,
 }
 

@@ -3,7 +3,7 @@ mod r#macro;
 use super::SyntaxError;
 use crate::{ast::Primitive, *};
 use analyzer::structure::{declaration, expression, repetition, typedef};
-use ast::{BinaryOperator, Data, Statement, UnaryOperator, Value};
+use ast::{BinaryOperator, Compound, Data, Datatype, Statement, UnaryOperator, Value};
 use std::iter::Peekable;
 
 // FUTURE: `syntax!` composition to define everything declaratively
@@ -12,23 +12,23 @@ syntax!(
   statement() with stream -> Statement<'a>:
     Token::Keyword("typedef") => Statement::Type(typedef(stream)?);
     Token::Keyword("return") => Statement::Return(expression(stream, ";")?);
-    Token::Keyword("int") => declaration(stream, Primitive::Int)?;
-    Token::Keyword("float") => declaration(stream, Primitive::Float)?;
-    Token::Keyword("short") => declaration(stream, Primitive::Short)?;
-    Token::Keyword("long") => declaration(stream, Primitive::Long)?;
-    Token::Keyword("char") => declaration(stream, Primitive::Byte)?;
-    Token::Identifier(identifier) => declaration(stream, Primitive::Custom(identifier))?;
+    Token::Keyword("int") => declaration(stream, Datatype::Type(Compound (Primitive::Int, 1)))?;
+    Token::Keyword("float") => declaration(stream, Datatype::Type(Compound (Primitive::Float, 1)))?;
+    Token::Keyword("short") => declaration(stream, Datatype::Type(Compound (Primitive::Short, 1)))?;
+    Token::Keyword("long") => declaration(stream, Datatype::Type(Compound (Primitive::Long, 1)))?;
+    Token::Keyword("char") => declaration(stream, Datatype::Type(Compound (Primitive::Byte, 1)))?;
+    Token::Identifier(identifier) => declaration(stream, Datatype::Alias(identifier))?;
     Token::Keyword("for") => Statement::Loop(repetition(stream)?);
 );
 
 syntax!(
-  primitive() -> Primitive<'a>:
-    Token::Keyword("int") => Primitive::Int;
-    Token::Keyword("float") => Primitive::Float;
-    Token::Keyword("short") => Primitive::Short;
-    Token::Keyword("long") => Primitive::Long;
-    Token::Keyword("char") => Primitive::Byte;
-    Token::Identifier(identifier) => Primitive::Custom(identifier);
+  datatype() -> Datatype<'a>:
+    Token::Keyword("int") => Datatype::Type(Compound (Primitive::Int, 1));
+    Token::Keyword("float") => Datatype::Type(Compound (Primitive::Float, 1));
+    Token::Keyword("short") => Datatype::Type(Compound (Primitive::Short, 1));
+    Token::Keyword("long") => Datatype::Type(Compound (Primitive::Long, 1));
+    Token::Keyword("char") => Datatype::Type(Compound (Primitive::Byte, 1));
+    Token::Identifier(identifier) => Datatype::Alias(identifier);
 );
 
 syntax!(

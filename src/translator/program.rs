@@ -1,16 +1,16 @@
 use super::intermediate::{Instruction, Operand, Operation};
 use crate::{
-    ast::{Data, DataType, Primitive},
+    ast::{Compound, Data, Datatype, Primitive},
     semantic::SemanticError,
 };
 use std::{collections::HashMap, fmt::Debug};
 
 pub struct Program<'a> {
-    pub globals: HashMap<String, (DataType<'a>, Data)>,
-    pub locals: HashMap<String, DataType<'a>>,
+    pub globals: HashMap<String, (Compound, Data)>,
+    pub locals: HashMap<String, Compound>,
     pub instructions: Vec<Instruction>,
 
-    types: HashMap<&'a str, DataType<'a>>,
+    types: HashMap<&'a str, Compound>,
     scope: usize,
 }
 
@@ -71,23 +71,23 @@ impl<'a> Program<'a> {
         format!("{name}_{}", self.scope)
     }
 
-    fn resolve_type(&self, datatype: DataType<'a>) -> Result<DataType<'a>, SemanticError<'a>> {
+    fn resolve_type(&self, datatype: Datatype<'a>) -> Result<Compound, SemanticError<'a>> {
         match datatype {
-            DataType::Primitive(Primitive::Custom(alias)) => match self.types.get(alias) {
-                Some(datatype) => self.resolve_type(*datatype),
+            Datatype::Type(datatype) => Ok(datatype),
+            Datatype::Alias(alias) => match self.types.get(alias) {
+                Some(datatype) => Ok(*datatype),
                 None => Err(SemanticError {
                     message: format!("Type '{}' is not defined!", alias),
                     token: Some(alias),
                 }),
             },
-            _ => Ok(datatype),
         }
     }
 
     pub fn define_variable(
         &mut self,
         name: &'a str,
-        datatype: DataType<'a>,
+        datatype: Datatype<'a>,
         value: Option<Data>,
     ) -> Result<(), SemanticError<'a>> {
         if self.is_defined_here(name) {
@@ -121,9 +121,9 @@ impl<'a> Program<'a> {
     pub fn define_type(
         &mut self,
         name: &'a str,
-        datatype: DataType<'a>,
+        datatype: Datatype<'a>,
     ) -> Result<(), SemanticError<'a>> {
-        self.types.insert(name, datatype);
+        self.types.insert(name, self.resolve_type(datatype)?);
         Ok(())
     }
 
@@ -140,14 +140,36 @@ impl<'a> Program<'a> {
     }
 
     pub fn stack_size(&self) -> usize {
-        let size = self
+        let size: usize = self
             .locals
             .iter()
             .map(|(_, &datatype)| datatype.size())
-            .sum::<Option<usize>>()
-            .unwrap_or(0);
+            .sum();
 
         size + (16 - size % 16)
+    }
+
+    pub fn cast(&mut self, operand: Operand, to: Option<Primitive>) -> Operand {
+        let from = operand.datatype(self);
+        let cast = match (from, to) {
+            (from, to) if from == to => None,
+            (
+                Some(Primitive::Byte | Primitive::Short | Primitive::Int | Primitive::Long),
+                Some(Primitive::Float),
+            ) => Some(Operation::SCvtF),
+            (
+                Some(Primitive::Float),
+                Some(Primitive::Byte | Primitive::Short | Primitive::Int | Primitive::Long),
+            ) => Some(Operation::FCvtZS),
+            _ => None,
+        };
+
+        if let Some(instruction) = cast {
+            self.instruct(instruction, operand, Operand::None);
+            self.last()
+        } else {
+            operand
+        }
     }
 }
 

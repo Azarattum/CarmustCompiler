@@ -4,10 +4,10 @@ use std::iter::Peekable;
 
 pub fn declaration<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
-    primitive: Primitive<'a>,
+    datatype: Datatype<'a>,
 ) -> Result<Statement<'a>, SyntaxError<'a>> {
-    match (&primitive, symbol(stream, "=")) {
-        (Primitive::Custom(identifier), Ok(_)) => {
+    match (&datatype, symbol(stream, "=")) {
+        (Datatype::Alias(identifier), Ok(_)) => {
             return Ok(Statement::Assignment(assignment(stream, identifier, ";")?))
         }
         _ => (),
@@ -15,15 +15,15 @@ pub fn declaration<'a>(
 
     let identifier = identifier(stream)?;
     Ok(match symbol(stream, "(") {
-        Ok(_) => Statement::Function(function(stream, primitive, identifier)?),
-        Err(_) => Statement::Variable(variable(stream, primitive, identifier)?),
+        Ok(_) => Statement::Function(function(stream, datatype, identifier)?),
+        Err(_) => Statement::Variable(variable(stream, datatype, identifier)?),
     })
 }
 
 pub fn function<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
-    primitive: Primitive<'a>,
-    identifier: &'a str,
+    datatype: Datatype<'a>,
+    name: &'a str,
 ) -> Result<Function<'a>, SyntaxError<'a>> {
     match symbol(stream, ")") {
         Ok(_) => (),
@@ -38,15 +38,15 @@ pub fn function<'a>(
     let body = block(stream, "}")?;
 
     Ok(Function {
-        datatype: DataType::Primitive(primitive),
-        name: identifier,
-        body: body,
+        datatype,
+        name,
+        body,
     })
 }
 
 pub fn variable<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
-    primitive: Primitive<'a>,
+    datatype: Datatype<'a>,
     name: &'a str,
 ) -> Result<Variable<'a>, SyntaxError<'a>> {
     let assignment = match symbol(stream, "=") {
@@ -61,7 +61,7 @@ pub fn variable<'a>(
     };
 
     Ok(Variable {
-        datatype: DataType::Primitive(primitive), // TODO: support arrays
+        datatype, // TODO: support arrays
         assignment,
         name,
     })
@@ -70,15 +70,23 @@ pub fn variable<'a>(
 pub fn typedef<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
 ) -> Result<Type<'a>, SyntaxError<'a>> {
-    let datatype = primitive(stream)?;
+    let datatype = datatype(stream)?;
     let name = identifier(stream)?;
     let size = index(stream).unwrap_or(0);
-    symbol(stream, ";")?;
 
-    let datatype = match size {
-        0 => DataType::Primitive(datatype),
-        size => DataType::Array(datatype, size),
+    let datatype = match (size > 1, datatype) {
+        // FUTURE: support arrays of aliases
+        (true, Datatype::Alias(_)) => {
+            return Err(SyntaxError {
+                expected: "no index because arrays of aliases are not supported".to_owned(),
+                found: stream.peek().map(|&x| x),
+            })
+        }
+        (true, Datatype::Type(Compound(primitive, _))) => Datatype::Type(Compound(primitive, size)),
+        (false, datatype) => datatype,
     };
+
+    symbol(stream, ";")?;
 
     return Ok(Type { name, datatype });
 }
@@ -106,9 +114,9 @@ pub fn repetition<'a>(
 ) -> Result<Loop<'a>, SyntaxError<'a>> {
     // FUTURE: allow for arbitrary expressions
     symbol(stream, "(")?;
-    let primitive = primitive(stream)?;
+    let datatype = datatype(stream)?;
     let name = identifier(stream)?;
-    let initialization = variable(stream, primitive, name)?;
+    let initialization = variable(stream, datatype, name)?;
     let condition = expression(stream, ";")?;
     let name = identifier(stream)?;
     symbol(stream, "=")?;

@@ -3,10 +3,7 @@ mod operation;
 use operation::AssemblablePart;
 
 use crate::{
-    ast::{Data, DataType, Primitive},
-    error::assembly::AssemblyError,
-    intermediate::Operand,
-    program::Program,
+    ast::Primitive, error::assembly::AssemblyError, intermediate::Operand, program::Program,
 };
 use std::collections::HashMap;
 
@@ -32,16 +29,16 @@ fn globals(program: &Program) -> Result<String, AssemblyError> {
         .globals
         .iter()
         .map(|(name, (datatype, value))| {
-            let data = if datatype.floating() {
+            let data = if datatype.0.floating() {
                 f32::from(value).to_bits() as i64
             } else {
                 i64::from(value)
             };
             let size = match datatype.size() {
-                Some(8) => "xword",
-                Some(4) => "word",
-                Some(2) => "hword",
-                Some(1) => "byte",
+                8 => "xword",
+                4 => "word",
+                2 => "hword",
+                1 => "byte",
                 _ => {
                     return Err(AssemblyError {
                         message: format!("Unsupported datatype: {datatype:?}"),
@@ -135,12 +132,7 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
 
         let allocate = |temp: bool| {
             let address = if temp { 0 } else { address };
-            process_operand(
-                &Operand::Temp,
-                address,
-                temp,
-                datatype.size().unwrap_or(0) > 4 || temp,
-            )
+            process_operand(&Operand::Temp, address, temp, datatype.size() > 4 || temp)
         };
 
         instructions.extend(
