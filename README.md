@@ -51,7 +51,7 @@ Firstly the following tokens are extracted from the source code:
 
 That an abstract syntax tree is generated:
 <pre>
-<span style="color:magenta">IR</span>: [Variable(Variable { datatype: Type(Compound(Float, 1)), name: "global", assignment: Some(Assignment { name: "global", value: Value(Data(Integer(42))) }) }), Function(Function { datatype: Type(Compound(Int, 1)), name: "main", body: [Variable(Variable { datatype: Type(Compound(Int, 1)), name: "local", assignment: Some(Assignment { name: "local", value: Value(Data(Integer(1337))) }) }), Return(Binary { op: Addition, lhs: Binary { op: Remainder, lhs: Value(Pointer(Identifier("local"))), rhs: Value(Data(Integer(255))) }, rhs: Value(Pointer(Identifier("global"))) })] })]
+<span style="color:magenta">AST</span>: [Variable(Variable { datatype: Type(Compound(Float, 1)), name: "global", assignment: Some(Assignment { name: "global", value: Value(Data(Integer(42))) }) }), Function(Function { datatype: Type(Compound(Int, 1)), name: "main", body: [Variable(Variable { datatype: Type(Compound(Int, 1)), name: "local", assignment: Some(Assignment { name: "local", value: Value(Data(Integer(1337))) }) }), Return(Binary { op: Addition, lhs: Binary { op: Remainder, lhs: Value(Pointer(Identifier("local"))), rhs: Value(Data(Integer(255))) }, rhs: Value(Pointer(Identifier("global"))) })] })]
 </pre>
 
 This can be compiled to intermediate representation:
