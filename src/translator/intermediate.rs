@@ -90,7 +90,7 @@ impl Instruction {
         match self.operation {
             Operation::SCvtF => return Some(Primitive::Float),
             Operation::FCvtZS => return Some(Primitive::Int),
-            Operation::CSet => return Some(Primitive::Byte),
+            Operation::CSet => return Some(Primitive::Int),
             _ => (),
         }
 
