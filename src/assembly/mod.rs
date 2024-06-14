@@ -1,11 +1,10 @@
+mod arm;
 mod operation;
 
 use crate::{
-    ast::{Data, Primitive},
-    error::assembly::AssemblyError,
-    intermediate::Operand,
-    program::Program,
+    ast::Primitive, error::assembly::AssemblyError, intermediate::Operand, program::Program,
 };
+use arm::*;
 use operation::AssemblablePart;
 use std::collections::HashMap;
 
@@ -108,8 +107,7 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
         let datatype = if temp { Primitive::Long } else { datatype };
         Ok(match operand {
             Operand::Identifier(x) => lookup(x)?,
-            Operand::Data(Data::Float(x)) => format!("{x:e}"),
-            Operand::Data(x) => x.to_string(),
+            Operand::Data(x) => x.represent(),
             Operand::Asm(x) => x.to_string(),
             Operand::None => "".to_owned(),
             Operand::Temp => format!(

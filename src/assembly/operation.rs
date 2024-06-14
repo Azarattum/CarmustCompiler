@@ -21,6 +21,7 @@ impl AssemblablePart for Operation {
         rhs: String,
     ) -> Result<Vec<String>, AssemblyError> {
         Ok(match self {
+            Operation::Mov if rhs.starts_with("=") => vec![format!("ldr {lhs}, {rhs}")],
             Self::Ldg => {
                 let temp = allocate(true)?;
                 vec![

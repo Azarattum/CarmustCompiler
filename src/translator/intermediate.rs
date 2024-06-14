@@ -1,9 +1,8 @@
-use std::fmt::Debug;
-
 use crate::{
     ast::{Data, Primitive},
     program::Program,
 };
+use std::{cmp::min, fmt::Debug};
 
 #[derive(Debug, PartialEq)]
 pub enum Operation {
@@ -101,7 +100,7 @@ impl Instruction {
             (Some(x), Some(y)) if x == y => return Some(x),
             (Some(x), None) => return Some(x),
             (None, Some(x)) => return Some(x),
-            _ => None,
+            _ => min(type1, type2), // downcast
         }
     }
 }
