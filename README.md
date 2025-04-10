@@ -29,8 +29,13 @@ int main() {
   ;
   ;
 
+  // For loops
+  for (int i = 0; i < 5 + 1; i = i + 1) {
+    unaryOperators = unaryOperators + 1;
+  }
+
   // Expressions in the return statement
-  return unaryOperators + floatingPointMath + booleanAndBinaryOps;
+  return unaryOperators + floatingPointMath + booleanAndBinaryOps - 5;
 }
 ```
 

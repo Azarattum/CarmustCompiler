@@ -106,8 +106,37 @@ impl<'a> Translatable<'a> for Loop<'a> {
             });
         }
         program.push_scope();
+
+        let loop_start = program.generate_label("loop_start");
+        let loop_end = program.generate_label("loop_end");
+
+        self.initialization.translate(program)?;
+        program.instruct(
+            Operation::Lbl,
+            Operand::Label(loop_start.clone()),
+            Operand::None,
+        );
+
+        self.condition.translate(program)?;
+        program.instruct(
+            Operation::Cmp,
+            program.last(),
+            Operand::Data(Data::Integer(0)),
+        );
+        program.instruct(
+            Operation::BEq,
+            Operand::Label(loop_end.clone()),
+            Operand::None,
+        );
+
+        self.body.translate(program)?;
+        self.increment.translate(program)?;
+
+        program.instruct(Operation::B, Operand::Label(loop_start), Operand::None);
+        program.instruct(Operation::Lbl, Operand::Label(loop_end), Operand::None);
         program.pop_scope();
-        todo!()
+
+        Ok(())
     }
 }
 

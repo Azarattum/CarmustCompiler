@@ -25,6 +25,9 @@ pub enum Operation {
     Ret,
     SCvtF,
     FCvtZS,
+    Lbl,
+    BEq,
+    B,
 }
 
 #[derive(Clone, PartialEq)]
@@ -32,6 +35,7 @@ pub enum Operand {
     Identifier(String),
     Asm(&'static str),
     Address(usize),
+    Label(String),
     Data(Data),
     Temp,
     None,
@@ -53,6 +57,7 @@ impl Debug for Operand {
             Operand::Temp => write!(f, "@"),
             Operand::None => write!(f, ""),
             Operand::Asm(x) => write!(f, "{}", x),
+            Operand::Label(x) => write!(f, ":{}", x),
         }
     }
 }

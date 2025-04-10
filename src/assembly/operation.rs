@@ -1,37 +1,38 @@
 use crate::{ast::Primitive, error::assembly::AssemblyError, intermediate::Operation};
 
 pub trait AssemblablePart {
-    fn assemble<T: FnMut(bool, Primitive) -> Result<String, AssemblyError>>(
+    fn assemble<T: FnMut(bool, Option<Primitive>) -> Result<String, AssemblyError>>(
         &self,
         allocate: T,
-        datatype: Primitive,
+        datatype: Option<Primitive>,
         lhs: String,
         rhs: String,
     ) -> Result<Vec<String>, AssemblyError>;
-    fn instruction(&self, datatype: Primitive) -> String;
+    fn instruction(&self, datatype: Option<Primitive>) -> Result<String, AssemblyError>;
     fn arity(&self) -> (usize, usize, bool);
 }
 
 impl AssemblablePart for Operation {
-    fn assemble<T: FnMut(bool, Primitive) -> Result<String, AssemblyError>>(
+    fn assemble<T: FnMut(bool, Option<Primitive>) -> Result<String, AssemblyError>>(
         &self,
         mut allocate: T,
-        datatype: Primitive,
+        datatype: Option<Primitive>,
         lhs: String,
         rhs: String,
     ) -> Result<Vec<String>, AssemblyError> {
         Ok(match self {
             // Weird hack to pass immediate constants refer to:
             //   https://stackoverflow.com/questions/64608307/how-do-i-move-a-floating-point-constant-into-an-fp-register
-            Operation::Mov if rhs.starts_with("#") && datatype == Primitive::Float => {
-                let temp = allocate(true, Primitive::Int)?;
+            Operation::Mov if rhs.starts_with("#") && datatype == Some(Primitive::Float) => {
+                let temp = allocate(true, Some(Primitive::Int))?;
                 vec![format!("mov {temp}, {rhs}"), format!("fmov {lhs}, {temp}")]
             }
             Operation::Mov if rhs.starts_with("=") => {
                 vec![format!("ldr {lhs}, {rhs}")]
             }
-            Self::Ldg => {
-                let temp = allocate(true, Primitive::Long)?;
+            Operation::Lbl => vec![format!("{}:", lhs)],
+            Operation::Ldg => {
+                let temp = allocate(true, Some(Primitive::Long))?;
                 vec![
                     format!("adrp {temp}, {rhs}"),
                     format!("ldr {temp}, [{temp}, {rhs}OFF]"),
@@ -59,13 +60,13 @@ impl AssemblablePart for Operation {
                     args.reverse();
                 }
 
-                let instruction = format!("{} {}", self.instruction(datatype), args.join(", "));
+                let instruction = format!("{} {}", self.instruction(datatype)?, args.join(", "));
                 vec![instruction]
             }
         })
     }
 
-    fn instruction(&self, datatype: Primitive) -> String {
+    fn instruction(&self, datatype: Option<Primitive>) -> Result<String, AssemblyError> {
         let op = match self {
             Self::Mov => "mov",
             Self::Add => "add",
@@ -86,19 +87,29 @@ impl AssemblablePart for Operation {
             Self::Ret => "ret",
             Self::FCvtZS => "fcvtzs",
             Self::SCvtF => "scvtf",
+            Self::Lbl => "",
+            Self::B => "b",
+            Self::BEq => "b.eq",
         };
 
         match (self, datatype) {
-            (Self::Mov | Self::Add | Self::Mul | Self::Sub | Self::Div, Primitive::Float) => {
-                format!("f{op}")
+            (
+                Self::Mov | Self::Add | Self::Mul | Self::Sub | Self::Div | Self::Str | Self::Ldr,
+                None,
+            ) => Err(AssemblyError {
+                message: format!("Instruction {self:?} requires a known datatype!"),
+            }),
+            (Self::Mov | Self::Add | Self::Mul | Self::Sub | Self::Div, Some(Primitive::Float)) => {
+                Ok(format!("f{op}"))
             }
-            (Self::Div, Primitive::Byte | Primitive::Short | Primitive::Int | Primitive::Long) => {
-                format!("s{op}")
-            }
-            (Self::Str | Self::Ldr, Primitive::Byte) => format!("{op}b"),
-            (Self::Ldr, Primitive::Short) => format!("{op}sh"),
-            (Self::Str, Primitive::Short) => format!("{op}h"),
-            _ => op.to_owned(),
+            (
+                Self::Div,
+                Some(Primitive::Byte | Primitive::Short | Primitive::Int | Primitive::Long),
+            ) => Ok(format!("s{op}")),
+            (Self::Str | Self::Ldr, Some(Primitive::Byte)) => Ok(format!("{op}b")),
+            (Self::Ldr, Some(Primitive::Short)) => Ok(format!("{op}sh")),
+            (Self::Str, Some(Primitive::Short)) => Ok(format!("{op}h")),
+            _ => Ok(op.to_owned()),
         }
     }
 
@@ -117,6 +128,7 @@ impl AssemblablePart for Operation {
                 (1, 1, false)
             }
             Operation::Cmp | Operation::Mov | Operation::Ldr => (2, 0, false),
+            Operation::Lbl | Operation::B | Operation::BEq => (1, 0, false),
             Operation::Ret | Operation::Ldg => (0, 0, false),
             Operation::Str => (2, 0, true),
         }

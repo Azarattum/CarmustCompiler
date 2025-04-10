@@ -12,12 +12,14 @@ pub struct Program<'a> {
 
     types: HashMap<&'a str, Compound>,
     scope: usize,
+    label: usize,
 }
 
 impl<'a> Program<'a> {
     pub fn new() -> Self {
         Program {
             scope: 0,
+            label: 0,
             types: HashMap::new(),
             instructions: Vec::new(),
             locals: HashMap::new(),
@@ -82,6 +84,12 @@ impl<'a> Program<'a> {
                 }),
             },
         }
+    }
+
+    pub fn generate_label(&mut self, prefix: &str) -> String {
+        let label = format!("{}_{}", prefix, self.label);
+        self.label += 1;
+        label
     }
 
     pub fn type_of(&self, identifier: &'a str) -> Option<Primitive> {
