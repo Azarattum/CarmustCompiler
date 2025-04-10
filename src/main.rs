@@ -1,7 +1,6 @@
 #![feature(let_chains)]
 #![feature(iter_intersperse)]
 #![feature(type_alias_impl_trait)]
-#![feature(return_position_impl_trait_in_trait)]
 
 #[macro_use]
 extern crate enum_display_derive;
