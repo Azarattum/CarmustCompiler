@@ -16,18 +16,22 @@ impl Executable for String {
         let object_file = temp_dir().join("program.tmp.o");
         let executable_file = filename.replace(".c", "");
 
-        let mut as_process = Command::new("as")
+        let mut clang_process = Command::new("clang")
+            .arg("-x")
+            .arg("assembler")
             .arg("-o")
             .arg(object_file.clone())
+            .arg("-c")
+            .arg("-")
             .stdin(Stdio::piped())
             .spawn()
             .or_else(|_| {
                 Err(CompileError {
-                    message: "Failed to start `as` process!",
+                    message: "Failed to start `clang` process!",
                 })
             })?;
 
-        as_process
+        clang_process
             .stdin
             .as_mut()
             .ok_or(CompileError {
@@ -40,15 +44,15 @@ impl Executable for String {
                 })
             })?;
 
-        let status = as_process.wait().or_else(|_| {
+        let status = clang_process.wait().or_else(|_| {
             Err(CompileError {
-                message: "Failed to wait on `as` process!",
+                message: "Failed to wait on `clang` process!",
             })
         })?;
 
         if !status.success() {
             return Err(CompileError {
-                message: "`as` command failed!",
+                message: "`clang` command failed!",
             });
         }
 
