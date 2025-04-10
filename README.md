@@ -1,10 +1,10 @@
 # Carmust Compiler
 
-Carmust is a C to ARM64 compiler written in Rust. This project is a prototype the primary goal of which was learning to code Rust. As it stands it currently supports a subset of C and lacks any real optimizations.
+Carmust is a C to ARM64 compiler written in Rust. This project is a prototype the primary goal of which was learning Rust. As it stands, the compiler currently supports a subset of C and lacks any real optimizations.
 
 ## Showcase
 
-An example program that it can compile is shown below:
+An example program that it can compile:
 ```c
 typedef int i32;
 typedef float f32;
@@ -49,17 +49,17 @@ int main() {
 }
 ```
 
-Firstly the following tokens are extracted from the source code: 
+At first the following tokens are extracted from the source code: 
 <pre>
 <span style="color:cyan">Tokens</span>: [Keyword("float"), Identifier("global"), Symbol("="), Data(Integer(42), "42"), Symbol(";"), Keyword("int"), Identifier("main"), Symbol("("), Symbol(")"), Symbol("{"), Keyword("int"), Identifier("local"), Symbol("="), Data(Integer(1337), "1337"), Symbol(";"), Keyword("return"), Identifier("local"), Symbol("%"), Data(Integer(255), "255"), Symbol("+"), Identifier("global"), Symbol(";"), Symbol("}")]
 </pre>
 
-That an abstract syntax tree is generated:
+Then an abstract syntax tree is generated:
 <pre>
 <span style="color:magenta">AST</span>: [Variable(Variable { datatype: Type(Compound(Float, 1)), name: "global", assignment: Some(Assignment { name: "global", value: Value(Data(Integer(42))) }) }), Function(Function { datatype: Type(Compound(Int, 1)), name: "main", body: [Variable(Variable { datatype: Type(Compound(Int, 1)), name: "local", assignment: Some(Assignment { name: "local", value: Value(Data(Integer(1337))) }) }), Return(Binary { op: Addition, lhs: Binary { op: Remainder, lhs: Value(Pointer(Identifier("local"))), rhs: Value(Data(Integer(255))) }, rhs: Value(Pointer(Identifier("global"))) })] })]
 </pre>
 
-This can be compiled to intermediate representation:
+Which can be compiled into an intermediate representation:
 <pre>
 <span style="color:lime">IR</span>:
 globals:
@@ -80,7 +80,7 @@ main:
  11) Ret @10
 </pre>
 
-Which is finally compiled to ARM64 assembly:
+And finally compiled to ARM64 assembly:
 <pre>
 <span style="color:yellow">ASM</span>:
 .global main
@@ -105,7 +105,7 @@ main:
   ret
 </pre>
 
-As you can see, it supports type inference, global/local variables, arbitrary expressions (with bitwise and boolean operators) and `return` statement which allows us to observe the result of the program:
+As you can see, it supports type inference, global/local variables, simple `for` loops, arbitrary expressions (with bitwise and boolean operators) and `return` statement which allows us to observe the result of the program:
 <pre>
 <span style="color:dodgerblue">Execution Result</span>: 104
 </pre>
