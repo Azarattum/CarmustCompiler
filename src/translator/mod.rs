@@ -87,7 +87,9 @@ impl<'a> Translatable<'a> for Variable<'a> {
                 program.define_variable(&self.name, self.datatype, None)?;
             }
         }
-        if !program.toplevel() && let Some(assignment) = self.assignment {
+        if !program.toplevel()
+            && let Some(assignment) = self.assignment
+        {
             assignment.translate(program)?;
         }
 

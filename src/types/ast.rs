@@ -156,6 +156,7 @@ impl From<&Data> for i64 {
 #[derive(Debug)]
 pub enum Pointer<'a> {
     Identifier(&'a str),
+    #[allow(dead_code)] // FUTURE: support arrays with offset (`usize` instead of `()`)
     Array(&'a str, usize),
 }
 
@@ -202,6 +203,7 @@ pub struct Assignment<'a> {
 
 #[derive(Debug)]
 pub struct Function<'a> {
+    #[allow(dead_code)] // FUTURE: do something with function type
     pub datatype: Datatype<'a>,
     pub name: &'a str,
     pub body: Vec<Statement<'a>>,

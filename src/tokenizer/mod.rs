@@ -3,7 +3,7 @@ mod known;
 use self::known::*;
 use crate::types::*;
 
-fn to_token<'a>(text: &'a str) -> Token {
+fn to_token<'a>(text: &'a str) -> Token<'a> {
     match text {
         x if KEYWORDS.contains(&x) => Token::Keyword(x),
         x if SYMBOLS.contains(&x) => Token::Symbol(x),

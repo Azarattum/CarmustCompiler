@@ -1,8 +1,5 @@
 pub mod ast;
 
-use self::ast::Statement;
-use crate::error::syntax::SyntaxError;
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Token<'a> {
     Data(Literal, &'a str),
@@ -22,12 +19,3 @@ pub enum Literal {
 
 pub trait TokenStream<'a>: Iterator<Item = Token<'a>> {}
 impl<'a, T: Iterator<Item = Token<'a>>> TokenStream<'a> for T {}
-
-pub trait DeclarationStream<'a>:
-    Iterator<Item = Result<Statement<'a>, SyntaxError<'a>>> + 'a
-{
-}
-impl<'a, T: Iterator<Item = Result<Statement<'a>, SyntaxError<'a>>> + 'a> DeclarationStream<'a>
-    for T
-{
-}

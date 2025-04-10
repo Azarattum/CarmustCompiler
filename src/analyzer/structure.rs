@@ -61,7 +61,7 @@ pub fn variable<'a>(
     };
 
     Ok(Variable {
-        datatype, // TODO: support arrays
+        datatype, // FUTURE: support arrays
         assignment,
         name,
     })
