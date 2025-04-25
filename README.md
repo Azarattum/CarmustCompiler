@@ -6,36 +6,45 @@ Carmust is a C to ARM64 compiler written in Rust. This project is a prototype th
 
 An example program that it can compile:
 ```c
+typedef int point[2];
+
 typedef int i32;
 typedef float f32;
 
 i32 globalData = 42;
 f32 floatEncoding = 32.0;
+point globalPoint = {4, 2};
 
 int main() {
-  // Expressions:
+  // Expressions
   i32 unaryOperators = 43 + -globalData - 11;
   i32 wildExpressions = 1 << !!!!!!-2 > (6 & 1 ^ (3 % 4)) & 255 == 1;
   i32 booleanAndBinaryOps = 7 || (1 + !5 == 2 - 3) && 1;
-  f32 floatingPointMath = (2.5 * 2 + floatEncoding) / 2;
+  f32 floatingPointMath = (2.5 * 2 + floatEncoding) / globalPoint[1];
+
+  // Arrays with initializers
+  int numbers[3] = {1, 2, 3};
+  point point = {1, 2};
 
   short shortsAreAlsoAllowed = 1;
   long longsAreSupportedAsWell = 123456;
 
-  // Assignment works
+  // Assignments
   unaryOperators = unaryOperators + wildExpressions + ' ';
+  point[1] = point[1] + numbers[2];
+  globalPoint[0] = 0;
 
   // Empty statements
   ;
   ;
 
   // For loops
-  for (int i = 0; i < 5 + 1; i = i + 1) {
-    unaryOperators = unaryOperators + 1;
+  for (int i = 0 + 0; i < 5 + 1; i = i + 1) {
+    unaryOperators = unaryOperators + 1 + globalPoint[0];
   }
 
   // Expressions in the return statement
-  return unaryOperators + floatingPointMath + booleanAndBinaryOps - 5;
+  return unaryOperators + floatingPointMath + booleanAndBinaryOps - point[1];
 }
 ```
 
@@ -56,7 +65,7 @@ At first the following tokens are extracted from the source code:
 
 Then an abstract syntax tree is generated:
 <pre>
-<span style="color:magenta">AST</span>: [Variable(Variable { datatype: Type(Compound(Float, 1)), name: "global", assignment: Some(Assignment { name: "global", value: Value(Data(Integer(42))) }) }), Function(Function { datatype: Type(Compound(Int, 1)), name: "main", body: [Variable(Variable { datatype: Type(Compound(Int, 1)), name: "local", assignment: Some(Assignment { name: "local", value: Value(Data(Integer(1337))) }) }), Return(Binary { op: Addition, lhs: Binary { op: Remainder, lhs: Value(Pointer(Identifier("local"))), rhs: Value(Data(Integer(255))) }, rhs: Value(Pointer(Identifier("global"))) })] })]
+<span style="color:magenta">AST</span>: [Variable(Variable { datatype: Type(Compound(Float, 1)), name: "global", assignment: Some(Assignment { identifier: ("global", 0), value: Expression(Value(Data(Integer(42)))) }) }), Function(Function { datatype: Type(Compound(Int, 1)), name: "main", body: [Variable(Variable { datatype: Type(Compound(Int, 1)), name: "local", assignment: Some(Assignment { identifier: ("local", 0), value: Expression(Value(Data(Integer(1337)))) }) }), Return(Binary { op: Addition, lhs: Binary { op: Remainder, lhs: Value(Pointer("local", 0)), rhs: Value(Data(Integer(255))) }, rhs: Value(Pointer("global", 0)) })] })]
 </pre>
 
 Which can be compiled into an intermediate representation:
@@ -83,9 +92,12 @@ main:
 And finally compiled to ARM64 assembly:
 <pre>
 <span style="color:yellow">ASM</span>:
-.global main
+.section __DATA,__data
 global_0:
   .word 1109917696
+
+.section __TEXT,__text
+.global main
 main:
   sub sp, sp, 16
   mov w0, 1337
@@ -97,7 +109,7 @@ main:
   sub w0, w0, w1
   adrp x3, global_0@GOTPAGE
   ldr x3, [x3, global_0@GOTPAGEOFF]
-  ldr s1, [x3]
+  ldr s1, [x3, 0]
   scvtf s0, w0
   fadd s0, s0, s1
   fcvtzs w0, s0
