@@ -6,7 +6,7 @@ use crate::{
 use std::{collections::HashMap, fmt::Debug};
 
 pub struct Program<'a> {
-    pub globals: HashMap<String, (Compound, Data)>,
+    pub globals: HashMap<String, (Compound, Vec<Data>)>,
     pub locals: HashMap<String, Compound>,
     pub instructions: Vec<Instruction>,
 
@@ -103,7 +103,7 @@ impl<'a> Program<'a> {
         &mut self,
         name: &'a str,
         datatype: Datatype<'a>,
-        value: Option<Data>,
+        value: Vec<Data>,
     ) -> Result<(), SemanticError<'a>> {
         if self.is_defined_here(name) {
             return Err(SemanticError {
@@ -114,18 +114,8 @@ impl<'a> Program<'a> {
 
         let datatype = self.resolve_type(datatype)?;
         if self.toplevel() {
-            match value {
-                None => {
-                    return Err(SemanticError {
-                        message: format!("Top-level variable '{}' must be initialized!", name),
-                        token: Some(name),
-                    })
-                }
-                Some(value) => {
-                    self.globals
-                        .insert(self.local_name(name), (datatype, value));
-                }
-            }
+            self.globals
+                .insert(self.local_name(name), (datatype, value));
         } else {
             self.locals.insert(self.local_name(name), datatype);
         }
@@ -191,11 +181,22 @@ impl<'a> Program<'a> {
 impl<'a> Debug for Program<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "globals:\n")?;
-        for (key, (_, value)) in self.globals.iter() {
-            match value {
-                Data::Float(x) => write!(f, "  {key} = {x:e}\n")?,
-                x => write!(f, "  {key} = {x}\n")?,
-            }
+        for (key, (_, values)) in self.globals.iter() {
+            let representation: Vec<_> = values
+                .into_iter()
+                .map(|value| match value {
+                    Data::Float(x) => format!("{x:e}"),
+                    x => format!("{x}"),
+                })
+                .collect();
+
+            let representation = if representation.len() == 1 {
+                &representation[0]
+            } else {
+                &format!("[{}]", representation.join(", "))
+            };
+
+            write!(f, "  {key} = {representation}\n")?
         }
         write!(f, "\nmain:\n")?;
         for (i, instruction) in self.instructions.iter().enumerate() {

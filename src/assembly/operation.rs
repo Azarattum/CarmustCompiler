@@ -33,10 +33,14 @@ impl AssemblablePart for Operation {
             Operation::Lbl => vec![format!("{}:", lhs)],
             Operation::Ldg => {
                 let temp = allocate(true, Some(Primitive::Long))?;
+                let (identifier, offset) = rhs.split_once("@").ok_or(AssemblyError {
+                    message: format!("Operand on global load instruction is invalid: {rhs}"),
+                })?;
+
                 vec![
-                    format!("adrp {temp}, {rhs}"),
-                    format!("ldr {temp}, [{temp}, {rhs}OFF]"),
-                    format!("ldr {lhs}, [{temp}]"),
+                    format!("adrp {temp}, {identifier}@GOTPAGE"),
+                    format!("ldr {temp}, [{temp}, {identifier}@GOTPAGEOFF]"),
+                    format!("ldr {lhs}, [{temp}, {offset}]"),
                 ]
             }
             Operation::Ret => vec![

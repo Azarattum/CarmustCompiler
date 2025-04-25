@@ -3,10 +3,11 @@ pub mod program;
 
 use crate::{
     ast::{
-        Assignment, BinaryOperator, Data, Expression, Loop, Pointer, Primitive, Statement,
-        UnaryOperator, Value, Variable,
+        Assignment, BinaryOperator, Data, Expression, Loop, Primitive, Statement, UnaryOperator,
+        Value, Variable,
     },
     semantic::SemanticError,
+    types::ast::Initializer,
 };
 use intermediate::{Operand, Operation, BYTE, ZERO};
 use program::Program;
@@ -64,33 +65,72 @@ impl<'a> Translatable<'a> for Assignment<'a> {
             });
         }
 
-        self.value.translate(program)?;
-        let identifier = program.infer_name(&self.name)?;
-        let value = program.cast(program.last(), program.type_of(&identifier));
-        program.instruct(
-            Operation::Str,
-            Operand::Identifier(program.infer_name(self.name)?),
-            value,
-        );
+        let values = match self.value {
+            Initializer::Expression(value) => vec![value],
+            Initializer::List(values) => values,
+        };
+
+        for (index, expression) in values.into_iter().enumerate() {
+            expression.translate(program)?;
+            let identifier = program.infer_name(&self.name)?;
+            let value = program.cast(program.last(), program.type_of(&identifier));
+            program.instruct(
+                Operation::Str,
+                Operand::Identifier(program.infer_name(self.name)?, index),
+                value,
+            );
+        }
         Ok(())
     }
 }
 
 impl<'a> Translatable<'a> for Variable<'a> {
     fn translate(self, program: &mut Program<'a>) -> Result<(), SemanticError<'a>> {
-        match self.assignment {
-            Some(Assignment {
-                name,
-                value: Expression::Value(Value::Data(data)),
-            }) => program.define_variable(name, self.datatype, Some(data))?,
-            Some(_) | None => {
-                program.define_variable(&self.name, self.datatype, None)?;
+        if program.toplevel() {
+            match self.assignment {
+                Some(Assignment {
+                    name,
+                    value: Initializer::Expression(Expression::Value(Value::Data(data))),
+                }) => program.define_variable(name, self.datatype, vec![data])?,
+                Some(Assignment {
+                    name,
+                    value: Initializer::List(values),
+                }) => {
+                    let data: Vec<_> = (&values)
+                        .iter()
+                        .filter_map(|value| match value {
+                            Expression::Value(Value::Data(data)) => Some(*data),
+                            _ => None,
+                        })
+                        .collect();
+
+                    if data.len() != values.len() {
+                        return Err(SemanticError {
+                            message: format!(
+                                "Top-level variable's '{}' initialization list cannot contain expressions!",
+                                self.name
+                            ),
+                            token: Some(self.name),
+                        });
+                    }
+
+                    program.define_variable(name, self.datatype, data)?
+                }
+                Some(_) | None => {
+                    return Err(SemanticError {
+                        message: format!(
+                            "Top-level variable '{}' must be initialized with a constant value!",
+                            self.name
+                        ),
+                        token: Some(self.name),
+                    })
+                }
             }
-        }
-        if !program.toplevel()
-            && let Some(assignment) = self.assignment
-        {
-            assignment.translate(program)?;
+        } else {
+            program.define_variable(&self.name, self.datatype, vec![])?;
+            if let Some(assignment) = self.assignment {
+                assignment.translate(program)?;
+            }
         }
 
         Ok(())
@@ -148,9 +188,7 @@ impl<'a> Translatable<'a> for Expression<'a> {
                     Value::Data(data) => {
                         program.instruct(Operation::Mov, Operand::Temp, Operand::Data(data));
                     }
-                    Value::Pointer(
-                        Pointer::Array(identifier, _) | Pointer::Identifier(identifier),
-                    ) => {
+                    Value::Pointer(identifier, index) => {
                         program.instruct(
                             if program.is_global(identifier)? {
                                 Operation::Ldg
@@ -158,7 +196,7 @@ impl<'a> Translatable<'a> for Expression<'a> {
                                 Operation::Ldr
                             },
                             Operand::Temp,
-                            Operand::Identifier(program.infer_name(identifier)?),
+                            Operand::Identifier(program.infer_name(identifier)?, index),
                         );
                     }
                 };

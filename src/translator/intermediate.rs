@@ -32,7 +32,7 @@ pub enum Operation {
 
 #[derive(Clone, PartialEq)]
 pub enum Operand {
-    Identifier(String),
+    Identifier(String, usize),
     Asm(&'static str),
     Address(usize),
     Label(String),
@@ -51,7 +51,8 @@ impl Debug for Operand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Operand::Address(x) => write!(f, "@{}", x),
-            Operand::Identifier(x) => write!(f, "'{}'", x),
+            Operand::Identifier(x, 0) => write!(f, "'{x}'"),
+            Operand::Identifier(x, i) => write!(f, "'{x}[{i}]'"),
             Operand::Data(Data::Float(x)) => write!(f, "{:e}", x),
             Operand::Data(x) => write!(f, "{}", x),
             Operand::Temp => write!(f, "@"),
@@ -79,7 +80,7 @@ impl Operand {
     pub fn datatype<'a>(&self, program: &'a Program) -> Option<Primitive> {
         match self {
             Self::Address(x) => program.instructions[*x].datatype(program),
-            Self::Identifier(identifier) => program.type_of(identifier),
+            Self::Identifier(identifier, _) => program.type_of(identifier),
             Self::Data(Data::Integer(_)) => Some(Primitive::Int),
             Self::Data(Data::Float(_)) => Some(Primitive::Float),
             Self::Data(Data::Short(_)) => Some(Primitive::Short),

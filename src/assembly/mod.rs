@@ -29,24 +29,31 @@ fn globals(program: &Program) -> Result<String, AssemblyError> {
     program
         .globals
         .iter()
-        .map(|(name, (datatype, value))| {
-            let data = if datatype.0.floating() {
-                f32::from(value).to_bits() as i64
-            } else {
-                i64::from(value)
-            };
-            let size = match datatype.size() {
-                8 => "xword",
-                4 => "word",
-                2 => "hword",
-                1 => "byte",
-                _ => {
-                    return Err(AssemblyError {
-                        message: format!("Unsupported datatype: {datatype:?}"),
-                    })
-                }
-            };
-            Ok(format!("{name}:\n  .{size} {data}"))
+        .map(|(name, (datatype, values))| {
+            let definitions = values
+                .into_iter()
+                .map(|value| {
+                    let data = if datatype.0.floating() {
+                        f32::from(value).to_bits() as i64
+                    } else {
+                        i64::from(value)
+                    };
+                    let size = match datatype.0.size() {
+                        8 => "xword",
+                        4 => "word",
+                        2 => "hword",
+                        1 => "byte",
+                        _ => {
+                            return Err(AssemblyError {
+                                message: format!("Unsupported datatype: {datatype:?}"),
+                            })
+                        }
+                    };
+                    Ok(format!("  .{size} {data}"))
+                })
+                .collect::<Result<Vec<_>, AssemblyError>>();
+
+            Ok(format!("{name}:\n{}", definitions?.join("\n")))
         })
         .intersperse(Ok("\n".to_owned()))
         .collect()
@@ -84,16 +91,17 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
         Ok(index.to_string())
     };
 
-    let mut lookup = |identifier: &str| -> Result<String, AssemblyError> {
+    let mut lookup = |identifier: &str, index: usize| -> Result<String, AssemblyError> {
+        let offset = index * program.type_of(identifier).unwrap().size();
         match stack.get(identifier) {
-            Some(&pointer) => Ok(format!("[sp, {pointer}]")),
+            Some(&pointer) => Ok(format!("[sp, {}]", pointer + offset)),
             None => match program.globals.get(identifier) {
-                Some(_) => Ok(format!("{identifier}@GOTPAGE")),
+                Some(_) => Ok(format!("{identifier}@{offset}")),
                 _ => {
                     let all: usize = *stack.values().min().unwrap_or(&program.stack_size());
                     let pointer = all - program.locals.get(identifier).unwrap().size();
                     stack.insert(identifier.to_owned(), pointer);
-                    Ok(format!("[sp, {pointer}]"))
+                    Ok(format!("[sp, {}]", pointer + offset))
                 }
             },
         }
@@ -105,8 +113,8 @@ fn main<'a>(program: &'a Program) -> Result<String, AssemblyError> {
                                temp: bool|
      -> Result<String, AssemblyError> {
         Ok(match operand {
+            Operand::Identifier(x, offset) => lookup(x, *offset)?,
             Operand::Label(label) => label.clone(),
-            Operand::Identifier(x) => lookup(x)?,
             Operand::Data(x) => x.represent(),
             Operand::Asm(x) => x.to_string(),
             Operand::None => "".to_owned(),

@@ -154,16 +154,9 @@ impl From<&Data> for i64 {
 }
 
 #[derive(Debug)]
-pub enum Pointer<'a> {
-    Identifier(&'a str),
-    #[allow(dead_code)] // FUTURE: support arrays with offset (`usize` instead of `()`)
-    Array(&'a str, usize),
-}
-
-#[derive(Debug)]
 pub enum Value<'a> {
     Data(Data),
-    Pointer(Pointer<'a>),
+    Pointer(&'a str, usize),
 }
 
 #[derive(Debug)]
@@ -198,7 +191,13 @@ pub struct Variable<'a> {
 #[derive(Debug)]
 pub struct Assignment<'a> {
     pub name: &'a str,
-    pub value: Expression<'a>,
+    pub value: Initializer<'a>,
+}
+
+#[derive(Debug)]
+pub enum Initializer<'a> {
+    Expression(Expression<'a>),
+    List(Vec<Expression<'a>>),
 }
 
 #[derive(Debug)]

@@ -50,10 +50,7 @@ pub fn variable<'a>(
     name: &'a str,
 ) -> Result<Variable<'a>, SyntaxError<'a>> {
     let assignment = match symbol(stream, "=") {
-        Ok(_) => Some(Assignment {
-            name,
-            value: expression(stream, ";")?,
-        }),
+        Ok(_) => Some(assignment(stream, name, ";")?),
         Err(_) => {
             symbol(stream, ";")?;
             None
@@ -61,7 +58,7 @@ pub fn variable<'a>(
     };
 
     Ok(Variable {
-        datatype, // FUTURE: support arrays
+        datatype,
         assignment,
         name,
     })
@@ -93,9 +90,9 @@ pub fn typedef<'a>(
 
 pub fn expression<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
-    terminator: &str,
-) -> Result<Expression<'a>, SyntaxError<'a>> {
-    Expression::from_stream(stream, terminator)
+    terminators: Vec<&str>,
+) -> Result<(Expression<'a>, Token<'a>), SyntaxError<'a>> {
+    Expression::from_stream(stream, terminators)
 }
 
 pub fn assignment<'a>(
@@ -103,10 +100,17 @@ pub fn assignment<'a>(
     identifier: &'a str,
     terminator: &str,
 ) -> Result<Assignment<'a>, SyntaxError<'a>> {
-    Ok(Assignment {
-        name: identifier,
-        value: expression(stream, terminator)?,
-    })
+    if let Some(Token::Symbol("{")) = stream.peek() {
+        Ok(Assignment {
+            name: identifier,
+            value: Initializer::List(initializer(stream, terminator)?),
+        })
+    } else {
+        Ok(Assignment {
+            name: identifier,
+            value: Initializer::Expression(expression(stream, vec![terminator])?.0),
+        })
+    }
 }
 
 pub fn repetition<'a>(
@@ -117,7 +121,7 @@ pub fn repetition<'a>(
     let datatype = datatype(stream)?;
     let name = identifier(stream)?;
     let initialization = variable(stream, datatype, name)?;
-    let condition = expression(stream, ";")?;
+    let condition = expression(stream, vec![";"])?.0;
     let name = identifier(stream)?;
     symbol(stream, "=")?;
     let increment = assignment(stream, name, ")")?;
@@ -155,4 +159,22 @@ pub fn block<'a>(
     }
 
     return Ok(block);
+}
+
+fn initializer<'a>(
+    stream: &mut Peekable<impl TokenStream<'a>>,
+    terminator: &str,
+) -> Result<Vec<Expression<'a>>, SyntaxError<'a>> {
+    symbol(stream, "{")?;
+    let mut elements = Vec::new();
+    loop {
+        let (expression, terminator) = expression(stream, vec![",", "}"])?;
+        elements.push(expression);
+
+        if terminator == Token::Symbol("}") {
+            break;
+        }
+    }
+    symbol(stream, terminator)?;
+    Ok(elements)
 }

@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     analyzer::syntax::{binary_operator, literal, symbol, unary_operator},
-    ast::{Expression, Operator, Pointer, Value},
+    ast::{Expression, Operator, Value},
     Token, TokenStream,
 };
 use std::iter::Peekable;
@@ -12,8 +12,8 @@ use std::iter::Peekable;
 impl<'a> Expression<'a> {
     pub fn from_stream(
         stream: &mut Peekable<impl TokenStream<'a>>,
-        terminator: &str,
-    ) -> Result<Self, SyntaxError<'a>> {
+        terminators: Vec<&str>,
+    ) -> Result<(Self, Token<'a>), SyntaxError<'a>> {
         let expression_error = SyntaxError {
             expected: "expression".to_owned(),
             found: stream.peek().map(|&x| x),
@@ -54,7 +54,7 @@ impl<'a> Expression<'a> {
             Ok(())
         };
 
-        loop {
+        let terminator = loop {
             match term(stream, &mut stack, complete) {
                 Ok((mutations, completed)) => {
                     complete = completed;
@@ -62,20 +62,23 @@ impl<'a> Expression<'a> {
                         apply(mutation)?;
                     }
                 }
-                Err(error) if error.found == Some(Token::Symbol(terminator)) => {
-                    stream.next();
-                    break;
+                Err(error)
+                    if terminators
+                        .iter()
+                        .any(|x| Some(Token::Symbol(x)) == error.found) =>
+                {
+                    break stream.next().unwrap();
                 }
                 Err(error) => return Err(error),
             }
-        }
+        };
 
         while let Some(&Operator::Binary(_) | &Operator::Unary(_)) = stack.last() {
             apply(Mutation::Operator(stack.pop()))?;
         }
 
         match (stack.len(), output.len()) {
-            (0, 1) => Ok(output.pop().unwrap()),
+            (0, 1) => Ok((output.pop().unwrap(), terminator)),
             _ => Err(expression_error),
         }
     }
@@ -99,11 +102,8 @@ fn term<'a>(
             let identifier = identifier(stream)?;
             completed = true;
 
-            let index = index(stream);
-            let value = Expression::Value(Value::Pointer(match index {
-                Ok(index) => Pointer::Array(identifier, index),
-                Err(_) => Pointer::Identifier(identifier),
-            }));
+            let index = index(stream).unwrap_or(0);
+            let value = Expression::Value(Value::Pointer(identifier, index));
 
             mutations.push(Mutation::Expression(value));
             Ok(())
@@ -111,18 +111,20 @@ fn term<'a>(
         .or_else(|_: SyntaxError<'a>| {
             if !complete && let Ok(op) = unary_operator(stream) {
                 stack.push(Operator::Unary(op));
-                return Ok(())
+                return Ok(());
             }
 
             let op = binary_operator(stream)?;
             let mut top = stack.last();
             completed = false;
 
-            while let Some(&operator) = top && match operator {
-                Operator::Binary(x) if x.precedence() <= op.precedence() => true,
-                Operator::Unary(_) => true,
-                _ => false,
-            } {
+            while let Some(&operator) = top
+                && match operator {
+                    Operator::Binary(x) if x.precedence() <= op.precedence() => true,
+                    Operator::Unary(_) => true,
+                    _ => false,
+                }
+            {
                 mutations.push(Mutation::Operator(stack.pop()));
                 top = stack.last();
             }

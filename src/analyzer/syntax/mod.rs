@@ -11,7 +11,7 @@ use std::iter::Peekable;
 syntax!(
   statement() with stream -> Statement<'a>:
     Token::Keyword("typedef") => Statement::Type(typedef(stream)?);
-    Token::Keyword("return") => Statement::Return(expression(stream, ";")?);
+    Token::Keyword("return") => Statement::Return(expression(stream, vec![";"])?.0);
     Token::Keyword("int") => declaration(stream, Datatype::Type(Compound (Primitive::Int, 1)))?;
     Token::Keyword("float") => declaration(stream, Datatype::Type(Compound (Primitive::Float, 1)))?;
     Token::Keyword("short") => declaration(stream, Datatype::Type(Compound (Primitive::Short, 1)))?;
@@ -44,7 +44,7 @@ syntax!(
 
 syntax!(
   index() -> usize:
-    Token::Symbol("["), Token::Data(Literal::Integer(size), _) if size > 0, Token::Symbol("]") => size as usize;
+    Token::Symbol("["), Token::Data(Literal::Integer(size), _), Token::Symbol("]") => size as usize;
 );
 
 syntax!(
