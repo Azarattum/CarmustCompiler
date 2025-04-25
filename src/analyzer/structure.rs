@@ -180,7 +180,9 @@ pub fn block<'a>(
     loop {
         match statement(stream) {
             Ok(decl) => block.push(decl),
-            Err(error) if error.found == expected => break,
+            Err(error) if error.found == expected && error.expected == "statement" => {
+                break;
+            }
             Err(error) => return Err(error),
         }
     }
