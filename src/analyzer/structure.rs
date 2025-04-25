@@ -4,7 +4,7 @@ use std::iter::Peekable;
 
 pub fn declaration<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
-    datatype: Datatype<'a>,
+    mut datatype: Datatype<'a>,
 ) -> Result<Statement<'a>, SyntaxError<'a>> {
     match (&datatype, stream.peek()) {
         (Datatype::Alias(identifier), Some(Token::Symbol("="))) => {
@@ -30,8 +30,8 @@ pub fn declaration<'a>(
     let (identifier, size) = identifier(stream)?;
     if size != 0 {
         match datatype {
-            Datatype::Type(mut value) => {
-                value.1 = size;
+            Datatype::Type(value) => {
+                datatype = Datatype::Type(Compound(value.0, size));
             }
             _ => {
                 // FUTURE: support arrays of aliases
