@@ -18,7 +18,7 @@ impl<'a> ErrorLike for SyntaxError<'a> {
             None => text.len(),
         };
 
-        let line = text[..(offset + 1)].lines().count();
+        let line = text[..(offset + 1).min(text.len())].lines().count();
         let start = text[..offset]
             .char_indices()
             .rev()
