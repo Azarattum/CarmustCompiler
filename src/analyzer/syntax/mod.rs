@@ -38,8 +38,8 @@ syntax!(
 );
 
 syntax!(
-  identifier() -> &'a str:
-    Token::Identifier(identifier) => identifier;
+  identifier() with stream -> (&'a str, usize):
+    Token::Identifier(identifier) => (identifier, index(stream).unwrap_or(0));
 );
 
 syntax!(

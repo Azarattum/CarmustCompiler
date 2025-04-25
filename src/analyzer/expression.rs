@@ -1,7 +1,4 @@
-use super::{
-    syntax::{identifier, index},
-    SyntaxError,
-};
+use super::{syntax::identifier, SyntaxError};
 use crate::{
     analyzer::syntax::{binary_operator, literal, symbol, unary_operator},
     ast::{Expression, Operator, Value},
@@ -99,10 +96,9 @@ fn term<'a>(
             Ok(())
         })
         .or_else(|_: SyntaxError<'a>| {
-            let identifier = identifier(stream)?;
+            let (identifier, index) = identifier(stream)?;
             completed = true;
 
-            let index = index(stream).unwrap_or(0);
             let value = Expression::Value(Value::Pointer(identifier, index));
 
             mutations.push(Mutation::Expression(value));

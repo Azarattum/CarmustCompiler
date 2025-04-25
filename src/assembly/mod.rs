@@ -16,10 +16,14 @@ impl Assemblable for Program<'_> {
     fn assemble(self) -> Result<String, AssemblyError> {
         let globals = globals(&self)?;
         let main = main(&self)?;
+
         Ok(format!(
-            ".global main\n{}{}main:\n{}",
-            globals,
-            if globals.is_empty() { "" } else { "\n" },
+            "{}.global main\nmain:\n{}",
+            if globals.is_empty() {
+                "".to_owned()
+            } else {
+                format!(".section __DATA,__data\n{globals}\n\n.section __TEXT,__text\n")
+            },
             main
         ))
     }

@@ -7,6 +7,7 @@ use std::{cmp::min, fmt::Debug};
 #[derive(Debug, PartialEq)]
 pub enum Operation {
     Str,
+    Stg,
     Ldr,
     Ldg,
     Mov,

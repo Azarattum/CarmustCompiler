@@ -6,14 +6,43 @@ pub fn declaration<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
     datatype: Datatype<'a>,
 ) -> Result<Statement<'a>, SyntaxError<'a>> {
-    match (&datatype, symbol(stream, "=")) {
-        (Datatype::Alias(identifier), Ok(_)) => {
-            return Ok(Statement::Assignment(assignment(stream, identifier, ";")?))
+    match (&datatype, stream.peek()) {
+        (Datatype::Alias(identifier), Some(Token::Symbol("="))) => {
+            symbol(stream, "=")?;
+            return Ok(Statement::Assignment(assignment(
+                stream,
+                (identifier, 0),
+                ";",
+            )?));
         }
-        _ => (),
+        (Datatype::Alias(identifier), Some(Token::Symbol("["))) => {
+            let index = index(stream)?;
+            symbol(stream, "=")?;
+            return Ok(Statement::Assignment(assignment(
+                stream,
+                (identifier, index),
+                ";",
+            )?));
+        }
+        _ => {}
     }
 
-    let identifier = identifier(stream)?;
+    let (identifier, size) = identifier(stream)?;
+    if size != 0 {
+        match datatype {
+            Datatype::Type(mut value) => {
+                value.1 = size;
+            }
+            _ => {
+                // FUTURE: support arrays of aliases
+                return Err(SyntaxError {
+                    expected: "no index because arrays of aliases are not supported".to_owned(),
+                    found: Some(Token::Identifier(identifier)),
+                });
+            }
+        }
+    }
+
     Ok(match symbol(stream, "(") {
         Ok(_) => Statement::Function(function(stream, datatype, identifier)?),
         Err(_) => Statement::Variable(variable(stream, datatype, identifier)?),
@@ -50,7 +79,7 @@ pub fn variable<'a>(
     name: &'a str,
 ) -> Result<Variable<'a>, SyntaxError<'a>> {
     let assignment = match symbol(stream, "=") {
-        Ok(_) => Some(assignment(stream, name, ";")?),
+        Ok(_) => Some(assignment(stream, (name, 0), ";")?),
         Err(_) => {
             symbol(stream, ";")?;
             None
@@ -68,15 +97,14 @@ pub fn typedef<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
 ) -> Result<Type<'a>, SyntaxError<'a>> {
     let datatype = datatype(stream)?;
-    let name = identifier(stream)?;
-    let size = index(stream).unwrap_or(0);
+    let (name, size) = identifier(stream)?;
 
     let datatype = match (size > 1, datatype) {
         // FUTURE: support arrays of aliases
         (true, Datatype::Alias(_)) => {
             return Err(SyntaxError {
                 expected: "no index because arrays of aliases are not supported".to_owned(),
-                found: stream.peek().map(|&x| x),
+                found: Some(Token::Identifier(name)),
             })
         }
         (true, Datatype::Type(Compound(primitive, _))) => Datatype::Type(Compound(primitive, size)),
@@ -97,17 +125,17 @@ pub fn expression<'a>(
 
 pub fn assignment<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
-    identifier: &'a str,
+    identifier: (&'a str, usize),
     terminator: &str,
 ) -> Result<Assignment<'a>, SyntaxError<'a>> {
     if let Some(Token::Symbol("{")) = stream.peek() {
         Ok(Assignment {
-            name: identifier,
+            identifier,
             value: Initializer::List(initializer(stream, terminator)?),
         })
     } else {
         Ok(Assignment {
-            name: identifier,
+            identifier,
             value: Initializer::Expression(expression(stream, vec![terminator])?.0),
         })
     }
@@ -116,15 +144,18 @@ pub fn assignment<'a>(
 pub fn repetition<'a>(
     stream: &mut Peekable<impl TokenStream<'a>>,
 ) -> Result<Loop<'a>, SyntaxError<'a>> {
-    // FUTURE: allow for arbitrary expressions
     symbol(stream, "(")?;
+
     let datatype = datatype(stream)?;
-    let name = identifier(stream)?;
+    let (name, _) = identifier(stream)?;
     let initialization = variable(stream, datatype, name)?;
+
     let condition = expression(stream, vec![";"])?.0;
-    let name = identifier(stream)?;
+
+    let identifier = identifier(stream)?;
     symbol(stream, "=")?;
-    let increment = assignment(stream, name, ")")?;
+    let increment = assignment(stream, identifier, ")")?;
+
     symbol(stream, "{")?;
     let body = block(stream, "}")?;
 

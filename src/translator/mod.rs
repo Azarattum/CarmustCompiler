@@ -61,7 +61,7 @@ impl<'a> Translatable<'a> for Assignment<'a> {
         if program.toplevel() {
             return Err(SemanticError {
                 message: "Assignments are not allowed on the top-level!".to_owned(),
-                token: Some(self.name),
+                token: Some(self.identifier.0),
             });
         }
 
@@ -72,11 +72,18 @@ impl<'a> Translatable<'a> for Assignment<'a> {
 
         for (index, expression) in values.into_iter().enumerate() {
             expression.translate(program)?;
-            let identifier = program.infer_name(&self.name)?;
+            let identifier = program.infer_name(&self.identifier.0)?;
             let value = program.cast(program.last(), program.type_of(&identifier));
             program.instruct(
-                Operation::Str,
-                Operand::Identifier(program.infer_name(self.name)?, index),
+                if program.is_global(&self.identifier.0)? {
+                    Operation::Stg
+                } else {
+                    Operation::Str
+                },
+                Operand::Identifier(
+                    program.infer_name(self.identifier.0)?,
+                    index + self.identifier.1,
+                ),
                 value,
             );
         }
@@ -89,11 +96,11 @@ impl<'a> Translatable<'a> for Variable<'a> {
         if program.toplevel() {
             match self.assignment {
                 Some(Assignment {
-                    name,
+                    identifier: (name, _),
                     value: Initializer::Expression(Expression::Value(Value::Data(data))),
                 }) => program.define_variable(name, self.datatype, vec![data])?,
                 Some(Assignment {
-                    name,
+                    identifier: (name, _),
                     value: Initializer::List(values),
                 }) => {
                     let data: Vec<_> = (&values)

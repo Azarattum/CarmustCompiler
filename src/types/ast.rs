@@ -190,7 +190,7 @@ pub struct Variable<'a> {
 
 #[derive(Debug)]
 pub struct Assignment<'a> {
-    pub name: &'a str,
+    pub identifier: (&'a str, usize),
     pub value: Initializer<'a>,
 }
 

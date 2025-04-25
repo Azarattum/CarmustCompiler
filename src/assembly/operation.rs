@@ -43,6 +43,17 @@ impl AssemblablePart for Operation {
                     format!("ldr {lhs}, [{temp}, {offset}]"),
                 ]
             }
+            Operation::Stg => {
+                let temp = allocate(true, Some(Primitive::Long))?;
+                let (identifier, offset) = lhs.split_once("@").ok_or(AssemblyError {
+                    message: format!("Operand on global load instruction is invalid: {lhs}"),
+                })?;
+
+                vec![
+                    format!("adrp {temp}, {identifier}@PAGE"),
+                    format!("str {rhs}, [{temp}, {offset}]"),
+                ]
+            }
             Operation::Ret => vec![
                 if lhs != "w0" && lhs != "x0" && lhs != "s0" {
                     Some(format!("mov w0, {lhs}"))
@@ -87,6 +98,7 @@ impl AssemblablePart for Operation {
             Self::Str => "str",
             Self::Ldr => "ldr",
             Self::Ldg => "ldg",
+            Self::Stg => "stg",
             Self::Neg => "neg",
             Self::Ret => "ret",
             Self::FCvtZS => "fcvtzs",
@@ -133,7 +145,7 @@ impl AssemblablePart for Operation {
             }
             Operation::Cmp | Operation::Mov | Operation::Ldr => (2, 0, false),
             Operation::Lbl | Operation::B | Operation::BEq => (1, 0, false),
-            Operation::Ret | Operation::Ldg => (0, 0, false),
+            Operation::Ret | Operation::Ldg | Operation::Stg => (0, 0, false),
             Operation::Str => (2, 0, true),
         }
     }
